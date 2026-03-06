@@ -40,6 +40,22 @@ Mount a Railway volume at `/data` — this persists the workspace, OpenWork stat
 
 On first boot, `openwork-orchestrator` downloads its sidecars (~200MB). Subsequent restarts are fast as the cache lives on the volume.
 
+## How to use
+
+1. **Download OpenWork** — Get the desktop app from [openwork.software](https://openwork.software/) or the [releases page](https://github.com/LaceLetho/openwork/releases).
+
+2. **Add a remote workspace** — In OpenWork:
+   - Click "Add worker" → "Connect remote"
+   - **URL**: Enter your Railway deployment URL (e.g., `https://your-project.up.railway.app`)
+   - **Access Token**: Enter the `OPENWORK_TOKEN` you set during deployment
+
+3. **Select your model** — After connecting, choose a model in the model dropdown:
+   - If you set `ANTHROPIC_API_KEY` → select Claude models (e.g., `claude-sonnet-4-5`)
+   - If you set `MINIMAX_API_KEY` → select Minimax models
+   - If you set `GLM_API_KEY` → select GLM models
+
+You're now ready to send requirements and let the autonomous agent work for you!
+
 ## Architecture
 
 ```
