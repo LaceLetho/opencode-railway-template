@@ -6,15 +6,20 @@ RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     ca-certificates \
     tini \
+    curl \
+    git \
   && rm -rf /var/lib/apt/lists/*
 
-# Install openwork-orchestrator (ships with pre-compiled Linux binary; Bun not needed at runtime)
-RUN npm install -g openwork-orchestrator && npm cache clean --force
+# Install Bun
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:${PATH}"
 
-# Persist openwork sidecar cache to Railway volume by default
-ENV OPENWORK_SIDECAR_DIR=/data/sidecars
-ENV OPENWORK_DATA_DIR=/data/openwork
+# Install OpenCode CLI
+RUN bun install -g opencode
+
+# Persist workspace and state to Railway volume
 ENV OPENCODE_WORKSPACE=/data/workspace
+ENV OPENCODE_STATE=/data/state
 
 WORKDIR /app
 

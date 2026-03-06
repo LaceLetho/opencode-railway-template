@@ -10,17 +10,14 @@ restartPolicyType = "on_failure"
 requiredMountPath = "/data"
 
 [variables]
-# Internal port for OpenWork server (proxy forwards here).
-OPENWORK_PORT = "8787"
-# Sidecar binaries are cached here across restarts.
-OPENWORK_SIDECAR_DIR = "/data/sidecars"
-# OpenWork server state directory.
-OPENWORK_DATA_DIR = "/data/openwork"
+# Internal port for OpenCode server (proxy forwards here).
+OPENCODE_PORT = "4096"
 # OpenCode workspace directory.
 OPENCODE_WORKSPACE = "/data/workspace"
+# OpenCode state directory.
+OPENCODE_STATE = "/data/state"
 # NOTE: Do NOT set PORT here. Railway injects it at runtime.
 # Required user variables (set in Railway dashboard):
-#   SETUP_PASSWORD  — HTTP Basic Auth password (for browser access)
-#   OPENWORK_TOKEN  — Access token (for OpenWork client)
+#   OPENCODE_SERVER_PASSWORD — HTTP Basic Auth password (for browser access)
 #   ANTHROPIC_API_KEY / MINIMAX_API_KEY / GLM_API_KEY — at least one
 #   OPENCODE_MODEL  — optional, e.g. anthropic/claude-sonnet-4-5

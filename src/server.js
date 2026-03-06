@@ -3,27 +3,20 @@ import express from "express"
 import httpProxy from "http-proxy"
 
 const PORT = Number.parseInt(process.env.PORT ?? "3000", 10)
-const OPENWORK_PORT = Number.parseInt(process.env.OPENWORK_PORT ?? "8787", 10)
-const SETUP_PASSWORD = process.env.SETUP_PASSWORD ?? ""
-const CLIENT_TOKEN = process.env.OPENWORK_TOKEN ?? ""
-const TARGET = `http://127.0.0.1:${OPENWORK_PORT}`
+const OPENCODE_PORT = Number.parseInt(process.env.OPENCODE_PORT ?? "4096", 10)
+const SERVER_PASSWORD = process.env.OPENCODE_SERVER_PASSWORD ?? ""
+const TARGET = `http://127.0.0.1:${OPENCODE_PORT}`
 
 function checkAuth(req) {
   const header = req.headers.authorization ?? ""
 
-  // Check Bearer token first (for OpenWork client)
-  if (header.startsWith("Bearer ")) {
-    const token = header.slice(7)
-    return token === CLIENT_TOKEN && CLIENT_TOKEN.length > 0
-  }
-
-  // Fall back to Basic auth (for browser access)
+  // Check Basic auth (for browser access)
   if (!header.startsWith("Basic ")) return false
   const decoded = Buffer.from(header.slice(6), "base64").toString()
   const colon = decoded.indexOf(":")
   if (colon === -1) return false
   const pass = decoded.slice(colon + 1)
-  return pass === SETUP_PASSWORD && SETUP_PASSWORD.length > 0
+  return pass === SERVER_PASSWORD && SERVER_PASSWORD.length > 0
 }
 
 export function createProxyServer() {
@@ -42,7 +35,7 @@ export function createProxyServer() {
 
   app.use((req, res, next) => {
     if (checkAuth(req)) return next()
-    res.set("www-authenticate", 'Basic realm="OpenWork"')
+    res.set("www-authenticate", 'Basic realm="OpenCode"')
     res.status(401).send("Unauthorized")
   })
 
@@ -54,7 +47,7 @@ export function createProxyServer() {
 
   server.on("upgrade", (req, socket, head) => {
     if (!checkAuth(req)) {
-      socket.write("HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=\"OpenWork\"\r\n\r\n")
+      socket.write("HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=\"OpenCode\"\r\n\r\n")
       socket.destroy()
       return
     }

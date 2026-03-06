@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Ensure persistent directories exist
-mkdir -p /data/workspace /data/sidecars /data/openwork
+mkdir -p /data/workspace /data/state
 
 # ── Generate OPENCODE_CONFIG_CONTENT from env vars ──────────────────────────
 # Build provider JSON only for keys that are set.
@@ -46,19 +46,16 @@ export OPENCODE_CONFIG_CONTENT=$(node -e "
 " MODEL="$MODEL" PROVIDERS="$PROVIDERS")
 
 # ── Validate required env ────────────────────────────────────────────────────
-if [ -z "${SETUP_PASSWORD:-}" ]; then
-  echo "ERROR: SETUP_PASSWORD is required" >&2
+if [ -z "${OPENCODE_SERVER_PASSWORD:-}" ]; then
+  echo "ERROR: OPENCODE_SERVER_PASSWORD is required" >&2
   exit 1
 fi
 
-# ── Start proxy (background) ─────────────────────────────────────────────────
-node src/server.js &
-PROXY_PID=$!
-echo "proxy started (pid $PROXY_PID)"
-
-# ── Start openwork orchestrator (foreground) ─────────────────────────────────
-exec openwork serve \
+# ── Start OpenCode web server (foreground) ─────────────────────────────────
+# OpenCode's web mode proxies UI to app.opencode.ai and runs API on the specified port
+exec opencode web \
+  --port "${OPENCODE_PORT:-4096}" \
+  --hostname 0.0.0.0 \
   --workspace /data/workspace \
-  --approval auto \
-  --no-tui \
-  --openwork-port "${OPENWORK_PORT:-8787}"
+  --opencode-server-password "${OPENCODE_SERVER_PASSWORD}" \
+  ${OPENCODE_SERVER_USERNAME:+--username "$OPENCODE_SERVER_USERNAME"}
