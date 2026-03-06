@@ -153,6 +153,3 @@ temp/
 
 # ── Docker (local overrides) ──────────────────────
 docker-compose.override.yml
-
-node_modules/
-package-lock.json
