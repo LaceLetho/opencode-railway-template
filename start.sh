@@ -45,8 +45,6 @@ export OPENCODE_CONFIG_CONTENT=$(node -e "
   process.stdout.write(JSON.stringify(cfg));
 " MODEL="$MODEL" PROVIDERS="$PROVIDERS")
 
-echo "opencode config: $OPENCODE_CONFIG_CONTENT"
-
 # ── Validate required env ────────────────────────────────────────────────────
 if [ -z "${SETUP_PASSWORD:-}" ]; then
   echo "ERROR: SETUP_PASSWORD is required" >&2
