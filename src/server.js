@@ -4,17 +4,26 @@ import httpProxy from "http-proxy"
 
 const PORT = Number.parseInt(process.env.PORT ?? "3000", 10)
 const OPENWORK_PORT = Number.parseInt(process.env.OPENWORK_PORT ?? "8787", 10)
-const PASSWORD = process.env.SETUP_PASSWORD ?? ""
+const SETUP_PASSWORD = process.env.SETUP_PASSWORD ?? ""
+const CLIENT_TOKEN = process.env.OPENWORK_TOKEN ?? ""
 const TARGET = `http://127.0.0.1:${OPENWORK_PORT}`
 
 function checkAuth(req) {
   const header = req.headers.authorization ?? ""
+
+  // Check Bearer token first (for OpenWork client)
+  if (header.startsWith("Bearer ")) {
+    const token = header.slice(7)
+    return token === CLIENT_TOKEN && CLIENT_TOKEN.length > 0
+  }
+
+  // Fall back to Basic auth (for browser access)
   if (!header.startsWith("Basic ")) return false
   const decoded = Buffer.from(header.slice(6), "base64").toString()
   const colon = decoded.indexOf(":")
   if (colon === -1) return false
   const pass = decoded.slice(colon + 1)
-  return pass === PASSWORD && PASSWORD.length > 0
+  return pass === SETUP_PASSWORD && SETUP_PASSWORD.length > 0
 }
 
 export function createProxyServer() {

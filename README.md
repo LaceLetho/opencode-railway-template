@@ -16,7 +16,8 @@ One-click Railway deploy for [OpenCode](https://opencode.ai) + [OpenWork](https:
 
 | Variable | Description |
 |----------|-------------|
-| `SETUP_PASSWORD` | Password for the OpenWork UI (username: `openwork`) |
+| `SETUP_PASSWORD` | Password for browser HTTP Basic Auth (username: `openwork`) |
+| `OPENWORK_TOKEN` | Access token for OpenWork client app |
 | `ANTHROPIC_API_KEY` | Anthropic Claude API key (optional if using other providers) |
 | `MINIMAX_API_KEY` | Minimax API key (optional) |
 | `GLM_API_KEY` | ZhipuAI GLM API key (optional) |

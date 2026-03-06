@@ -20,6 +20,7 @@ OPENWORK_DATA_DIR = "/data/openwork"
 OPENCODE_WORKSPACE = "/data/workspace"
 # NOTE: Do NOT set PORT here. Railway injects it at runtime.
 # Required user variables (set in Railway dashboard):
-#   SETUP_PASSWORD  — HTTP Basic Auth password
+#   SETUP_PASSWORD  — HTTP Basic Auth password (for browser access)
+#   OPENWORK_TOKEN  — Access token (for OpenWork client)
 #   ANTHROPIC_API_KEY / MINIMAX_API_KEY / GLM_API_KEY — at least one
 #   OPENCODE_MODEL  — optional, e.g. anthropic/claude-sonnet-4-5
