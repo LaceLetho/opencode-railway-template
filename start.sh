@@ -5,12 +5,9 @@ set -euo pipefail
 export BUN_INSTALL="/root/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
-# Use XDG environment variables to store data in persistent volume
-# This avoids changing HOME which can cause UI issues
-export XDG_DATA_HOME="/data"
-export XDG_CONFIG_HOME="/data/config"
-export XDG_STATE_HOME="/data/state"
-export XDG_CACHE_HOME="/data/cache"
+# Use HOME to store data in persistent volume
+# This sets OpenCode's default workspace to /data/workspace
+export HOME="/data"
 
 # Ensure persistent directories exist
 mkdir -p /data/workspace /data/state /data/config /data/cache
