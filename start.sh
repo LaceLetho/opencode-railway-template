@@ -70,11 +70,11 @@ export OPENCODE_SERVER_PASSWORD
 export OPENCODE_SERVER_USERNAME="${OPENCODE_SERVER_USERNAME:-openwork}"
 export OPENCODE_CONFIG_DIR="/data/config"
 
-# Start OpenCode with working directory set to /data/workspace
-# This makes /data/workspace the default project directory without needing x-opencode-directory header
-(cd /data/workspace && bunx opencode-ai web \
+# Start OpenCode server (background)
+# Working directory is now set to /data/workspace in Dockerfile
+bunx opencode-ai web \
   --port "${OPENCODE_PORT:-4096}" \
-  --hostname 0.0.0.0) &
+  --hostname 0.0.0.0 &
 
 OPENCODE_PID=$!
 echo "OpenCode started (pid $OPENCODE_PID)"

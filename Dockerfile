@@ -27,7 +27,8 @@ RUN bun install -g opencode-ai
 ENV OPENCODE_WORKSPACE=/data/workspace
 ENV OPENCODE_STATE=/data/state
 
-WORKDIR /app
+# Set working directory to /data/workspace for OpenCode
+WORKDIR /data/workspace
 
 # Install proxy server deps
 COPY package.json package-lock.json ./
