@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -e
 
 # Railway 注入的端口
 PORT="${PORT:-8080}"
