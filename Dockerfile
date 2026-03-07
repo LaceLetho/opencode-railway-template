@@ -21,6 +21,9 @@ RUN bun install -g opencode-ai
 
 WORKDIR /app
 
+# Copy start script
+COPY start.sh ./
+
 # Railway injects PORT at runtime
 EXPOSE 8080
 
