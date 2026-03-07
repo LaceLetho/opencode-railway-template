@@ -11,9 +11,15 @@ if [ -z "${OPENCODE_SERVER_PASSWORD:-}" ]; then
 fi
 
 # 创建持久化目录
-mkdir -p /data/workspace
+mkdir -p /data/workspace /data/.local/share/opencode /data/.local/state/opencode /data/.config/opencode
 
-# 设置配置目录
+# 设置 HOME 为持久化目录，这样 OpenCode 的数据会存储在 /data 下
+# - 数据库: /data/.local/share/opencode/opencode.db
+# - 配置: /data/.config/opencode/
+# - 状态: /data/.local/state/opencode/
+export HOME="/data"
+
+# 设置配置目录（可选，覆盖默认的 XDG 路径）
 export OPENCODE_CONFIG_DIR="/data/.config/opencode"
 export OPENCODE_CONFIG="/data/.config/opencode/config.json"
 
