@@ -3,7 +3,8 @@ builder = "dockerfile"
 
 [deploy]
 healthcheckPath = "/healthz"
-healthcheckTimeout = 60
+healthcheckTimeout = 180
+healthcheckStartPeriod = 60
 restartPolicyType = "on_failure"
 
 # A persistent volume must be mounted at /data
