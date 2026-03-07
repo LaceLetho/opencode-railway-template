@@ -35,6 +35,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY src ./src
 COPY start.sh ./
+COPY start-opencode.sh ./
 
 # Railway injects PORT at runtime. Do not hardcode a default.
 EXPOSE 8080

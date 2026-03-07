@@ -72,9 +72,8 @@ export OPENCODE_CONFIG_DIR="/data/config"
 
 # Start OpenCode server (background) in /data/workspace directory
 # This sets the default project directory to /data/workspace
-(cd /data/workspace && bunx opencode-ai web \
-  --port "${OPENCODE_PORT:-4096}" \
-  --hostname 0.0.0.0) &
+chmod +x /app/start-opencode.sh
+/app/start-opencode.sh &
 
 OPENCODE_PID=$!
 echo "OpenCode started (pid $OPENCODE_PID)"
