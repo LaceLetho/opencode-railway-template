@@ -56,6 +56,9 @@ node -e "
   fs.writeFileSync('/data/opencode.json', JSON.stringify(cfg, null, 2));
 " PROVIDERS="$PROVIDERS"
 
+echo "Config content:"
+cat /data/opencode.json
+
 # ── Start OpenCode server (background) ───────────────────────────────────────
 export OPENCODE_SERVER_PASSWORD
 export OPENCODE_SERVER_USERNAME="${OPENCODE_SERVER_USERNAME:-openwork}"
