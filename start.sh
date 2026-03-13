@@ -32,4 +32,5 @@ echo "Workspace: $(pwd)"
 # 启动 opencode web
 # --port: 使用 Railway 提供的端口
 # --hostname 0.0.0.0: 让网络可访问
-exec bunx opencode web --port "$PORT" --hostname 0.0.0.0
+# 添加 --print-logs 使日志输出到 stderr，可在 Railway Dashboard 查看
+exec bunx opencode web --port "$PORT" --hostname 0.0.0.0 --print-logs
