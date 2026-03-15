@@ -220,28 +220,44 @@ const server = http.createServer((req, res) => {
     // 拦截代理响应，处理 HTML 内容注入
     proxy.once('proxyRes', (proxyRes, _req, res) => {
       const contentType = proxyRes.headers['content-type'] || '';
-      const isHtml = contentType.includes('text/html');
+      // 处理 HTML 或纯文本响应（OpenCode 返回 text/plain 但内容是 HTML）
+      const isTextResponse = contentType.includes('text/html') ||
+                             contentType.includes('text/plain') ||
+                             !contentType;
 
       // 复制头信息（除了 content-length）
       const headers = { ...proxyRes.headers };
       delete headers['content-length'];
 
-      if (!isHtml) {
-        // 非 HTML，直接透传
+      if (!isTextResponse) {
+        // 非文本响应，直接透传
         res.writeHead(proxyRes.statusCode, headers);
         proxyRes.pipe(res);
         return;
       }
 
-      // HTML 响应，收集并修改
+      // 文本响应，收集并修改
       const chunks = [];
       proxyRes.on('data', chunk => chunks.push(chunk));
       proxyRes.on('end', () => {
         const body = Buffer.concat(chunks).toString('utf8');
-        const modifiedBody = body.replace('</head>', INJECTED_SCRIPT + '</head>');
+
+        // 检查是否包含 HTML 标签
+        if (!body.includes('<!DOCTYPE') && !body.includes('<!doctype') && !body.includes('<html')) {
+          // 不是 HTML，直接返回
+          const newBuffer = Buffer.from(body, 'utf8');
+          headers['content-length'] = newBuffer.length;
+          res.writeHead(proxyRes.statusCode, headers);
+          res.end(newBuffer);
+          return;
+        }
+
+        // 注入脚本
+        const modifiedBody = body.replace(/<\/head>/i, INJECTED_SCRIPT + '</head>');
         const newBuffer = Buffer.from(modifiedBody, 'utf8');
 
-        // 设置新的 Content-Length
+        // 更新 Content-Type 和 Content-Length
+        headers['content-type'] = 'text/html; charset=UTF-8';
         headers['content-length'] = newBuffer.length;
         res.writeHead(proxyRes.statusCode, headers);
         res.end(newBuffer);
