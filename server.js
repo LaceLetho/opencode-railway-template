@@ -266,6 +266,17 @@ const server = http.createServer(async (req, res) => {
   const isHtmlRequest = req.method === "GET" &&
     !req.url.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|json)$/);
 
+  // 检查是否是 SSE (Server-Sent Events) 请求
+  const acceptHeader = req.headers.accept || '';
+  const isSSE = acceptHeader.includes('text/event-stream');
+
+  // 对于SSE请求，使用代理直接转发，以便正确处理流式响应
+  if (isSSE) {
+    console.log(`[SSE] Forwarding ${req.url} via proxy`);
+    proxy.web(req, res);
+    return;
+  }
+
   try {
     // 对于 POST/PUT/PATCH 请求，需要读取请求体
     let body = null;
@@ -305,42 +316,6 @@ const server = http.createServer(async (req, res) => {
 
     // 非 HTML 请求直接转发
     const targetRes = await forwardRequest(req, body);
-
-    // 检查是否是 SSE (Server-Sent Events)
-    const contentType = targetRes.headers.get('content-type') || '';
-    const isSSE = contentType.includes('text/event-stream');
-
-    if (isSSE) {
-      // SSE 需要流式传输，不能缓冲
-      // 复制原始响应头并添加SSE所需的头
-      const responseHeaders = {};
-      for (const [key, value] of targetRes.headers) {
-        responseHeaders[key] = value;
-      }
-      // 确保这些头部正确设置
-      responseHeaders['cache-control'] = 'no-cache';
-      responseHeaders['connection'] = 'keep-alive';
-
-      res.writeHead(targetRes.status, responseHeaders);
-
-      // 使用 body 流式传输
-      const reader = targetRes.body.getReader();
-      const pump = async () => {
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            res.write(Buffer.from(value));
-          }
-          res.end();
-        } catch (err) {
-          console.error('[SSE] Error streaming:', err.message);
-          res.end();
-        }
-      };
-      pump();
-      return;
-    }
 
     // 复制响应头
     const responseHeaders = {};
