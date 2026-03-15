@@ -203,8 +203,26 @@ const INJECTED_SCRIPT = `
 
 // 转发请求到内部 OpenCode 服务
 async function forwardRequest(req, body) {
-  const headers = { ...req.headers };
-  delete headers.host;
+  const headers = {};
+
+  // 只复制必要的 headers，确保 content-type 被正确保留
+  const headersToKeep = ['content-type', 'accept', 'accept-encoding', 'accept-language', 'cache-control', 'connection'];
+  for (const key of headersToKeep) {
+    if (req.headers[key]) {
+      headers[key] = req.headers[key];
+    }
+  }
+
+  // 如果有 body，确保 content-type 存在
+  if (body && body.length > 0) {
+    if (!headers['content-type']) {
+      // 尝试从 body 内容推断类型
+      const bodyStr = body.toString();
+      if (bodyStr.startsWith('{') || bodyStr.startsWith('[')) {
+        headers['content-type'] = 'application/json';
+      }
+    }
+  }
 
   const url = `http://127.0.0.1:${INTERNAL_PORT}${req.url}`;
   console.log(`[debug] forwardRequest ${req.method} ${url}`);
@@ -253,6 +271,7 @@ const server = http.createServer(async (req, res) => {
     if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
       body = await readRequestBody(req);
       console.log(`[debug] ${req.method} ${req.url} body length: ${body ? body.length : 0}`);
+      console.log(`[debug] original content-type: ${req.headers['content-type']}`);
     }
 
     if (isHtmlRequest) {
