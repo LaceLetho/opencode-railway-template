@@ -1,15 +1,19 @@
 #!/usr/bin/env node
 /**
  * OpenCode Railway Wrapper
- * 提供优雅关闭和日志分类功能
+ * 提供优雅关闭、日志分类和 Basic Auth 代理功能
  */
 
 const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const http = require("http");
+const httpProxy = require("http-proxy");
 
 const PORT = process.env.PORT || "8080";
+const INTERNAL_PORT = process.env.INTERNAL_PORT || "18080";
 const PASSWORD = process.env.OPENCODE_SERVER_PASSWORD;
+const USERNAME = process.env.OPENCODE_SERVER_USERNAME || "opencode";
 const logLevel = process.env.LOG_LEVEL?.toUpperCase() || "WARN";
 
 if (!PASSWORD) {
@@ -32,19 +36,22 @@ for (const dir of dirs) {
 process.env.HOME = "/data";
 process.env.OPENCODE_CONFIG_DIR = "/data/.config/opencode";
 process.env.OPENCODE_CONFIG = "/data/.config/opencode/config.json";
+// 内部 OpenCode 不需要 Basic Auth，由代理层处理
+process.env.OPENCODE_SERVER_PASSWORD = "";
+delete process.env.OPENCODE_SERVER_PASSWORD;
 
 console.log(`Starting OpenCode Web on port ${PORT}...`);
+console.log(`Internal port: ${INTERNAL_PORT}`);
 console.log(`Workspace: /data/workspace`);
 console.log(`Log level: ${logLevel} (set LOG_LEVEL env var to change: DEBUG, INFO, WARN, ERROR)`);
 
-// 启动 opencode web
-// --log-level: 控制日志输出级别，减少 Railway Dashboard 日志噪音
+// 启动 opencode web（内部端口，不直接暴露）
 const opencode = spawn(
   "bunx",
-  ["opencode", "web", "--port", PORT, "--hostname", "0.0.0.0", "--print-logs", "--log-level", logLevel],
+  ["opencode", "web", "--port", INTERNAL_PORT, "--hostname", "127.0.0.1", "--print-logs", "--log-level", logLevel],
   {
     cwd: "/data/workspace",
-    stdio: ["ignore", "pipe", "pipe"], // 捕获 stdout 和 stderr
+    stdio: ["ignore", "pipe", "pipe"],
     env: process.env,
   }
 );
@@ -71,7 +78,7 @@ opencode.stdout?.on("data", (data) => {
   }
 });
 
-// 处理 stderr (也做分类)
+// 处理 stderr
 opencode.stderr?.on("data", (data) => {
   const lines = data.toString().split("\n");
   for (const line of lines) {
@@ -91,6 +98,238 @@ opencode.on("exit", (code, signal) => {
   process.exit(code ?? 0);
 });
 
+// 等待 OpenCode 启动
+async function waitForOpencode(timeoutMs = 30000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(`http://127.0.0.1:${INTERNAL_PORT}/global/health`);
+      if (res.ok) {
+        return true;
+      }
+    } catch {
+      // 还没准备好
+    }
+    await new Promise(r => setTimeout(r, 100));
+  }
+  return false;
+}
+
+// 创建代理服务器
+const proxy = httpProxy.createProxyServer({
+  target: `http://127.0.0.1:${INTERNAL_PORT}`,
+  ws: true,
+  changeOrigin: true,
+});
+
+proxy.on("error", (err, _req, res) => {
+  console.error("[proxy error]", err.message);
+  if (res && !res.headersSent) {
+    res.writeHead(502, { "Content-Type": "text/plain" });
+    res.end("Gateway error\n");
+  }
+});
+
+// Basic Auth 验证
+function checkAuth(req) {
+  const auth = req.headers.authorization;
+  if (!auth) return false;
+
+  const [scheme, encoded] = auth.split(" ");
+  if (scheme !== "Basic" || !encoded) return false;
+
+  const decoded = Buffer.from(encoded, "base64").toString("utf8");
+  const [user, pass] = decoded.split(":");
+  return user === USERNAME && pass === PASSWORD;
+}
+
+// 注入到 HTML 的脚本：配置前端自动发送 Basic Auth
+const INJECTED_SCRIPT = `
+<script>
+(function() {
+  // 配置前端 SDK 使用 Basic Auth
+  window.__OPENCODE_AUTH__ = {
+    username: "${USERNAME}",
+    password: "${PASSWORD}"
+  };
+
+  // 拦截 fetch 请求，自动添加 Basic Auth 头
+  const originalFetch = window.fetch;
+  window.fetch = function(...args) {
+    const [url, options = {}] = args;
+    const urlStr = typeof url === 'string' ? url : url.url || url.toString();
+
+    // 只对同源请求添加 Basic Auth
+    if (urlStr.startsWith('/') || urlStr.startsWith(window.location.origin)) {
+      options.headers = options.headers || {};
+      if (!options.headers['Authorization']) {
+        const auth = btoa(window.__OPENCODE_AUTH__.username + ':' + window.__OPENCODE_AUTH__.password);
+        options.headers['Authorization'] = 'Basic ' + auth;
+      }
+    }
+
+    return originalFetch.call(this, url, options);
+  };
+
+  // 拦截 XMLHttpRequest
+  const originalOpen = XMLHttpRequest.prototype.open;
+  const originalSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
+
+  XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+    this._ocUrl = url;
+    return originalOpen.call(this, method, url, ...rest);
+  };
+
+  XMLHttpRequest.prototype.setRequestHeader = function(header, value) {
+    if (header.toLowerCase() === 'authorization') {
+      this._ocHasAuth = true;
+    }
+    return originalSetRequestHeader.call(this, header, value);
+  };
+
+  const originalSend = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.send = function(...args) {
+    const url = this._ocUrl || '';
+    // 只对同源请求添加 Basic Auth
+    if (!this._ocHasAuth && (url.startsWith('/') || url.startsWith(window.location.origin))) {
+      const auth = btoa(window.__OPENCODE_AUTH__.username + ':' + window.__OPENCODE_AUTH__.password);
+      originalSetRequestHeader.call(this, 'Authorization', 'Basic ' + auth);
+    }
+    return originalSend.call(this, ...args);
+  };
+})();
+</script>
+`;
+
+// 创建 HTTP 服务器
+const server = http.createServer((req, res) => {
+  // 检查 Basic Auth
+  if (!checkAuth(req)) {
+    res.writeHead(401, {
+      "WWW-Authenticate": 'Basic realm="OpenCode"',
+      "Content-Type": "text/plain"
+    });
+    res.end("Authentication required\n");
+    return;
+  }
+
+  // 处理 HTML 响应：拦截并注入脚本
+  const isHtmlRequest = !req.url.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|json)$/);
+
+  if (isHtmlRequest && req.method === "GET") {
+    // 使用代理获取响应
+    const proxyResChunks = [];
+    const originalWrite = res.write.bind(res);
+    const originalEnd = res.end.bind(res);
+    let headersSent = false;
+    let isHtml = false;
+
+    res.write = function(chunk, encoding) {
+      if (!headersSent) {
+        // 等待头信息
+        proxyResChunks.push(Buffer.from(chunk));
+        return true;
+      }
+      if (isHtml) {
+        // 已经处理了，这里不应该被调用
+        return true;
+      }
+      return originalWrite(chunk, encoding);
+    };
+
+    res.end = function(chunk, _encoding) {
+      if (chunk) {
+        proxyResChunks.push(Buffer.from(chunk));
+      }
+
+      if (!headersSent) {
+        // 还没有发送头，保存数据等待处理
+        return;
+      }
+
+      if (isHtml && proxyResChunks.length > 0) {
+        const body = Buffer.concat(proxyResChunks).toString('utf8');
+        // 在 </head> 前注入脚本
+        const modifiedBody = body.replace('</head>', INJECTED_SCRIPT + '</head>');
+        const newBuffer = Buffer.from(modifiedBody, 'utf8');
+
+        // 更新 Content-Length
+        res.setHeader('Content-Length', newBuffer.length);
+        originalEnd(newBuffer);
+      } else {
+        const body = Buffer.concat(proxyResChunks);
+        res.setHeader('Content-Length', body.length);
+        originalEnd(body);
+      }
+    };
+
+    // 拦截代理响应
+    proxy.once('proxyRes', (proxyRes, _req, res) => {
+      headersSent = true;
+      const contentType = proxyRes.headers['content-type'] || '';
+      isHtml = contentType.includes('text/html');
+
+      // 复制头信息
+      const headers = { ...proxyRes.headers };
+      delete headers['content-length']; // 我们将重新计算
+
+      res.writeHead(proxyRes.statusCode, headers);
+
+      if (!isHtml) {
+        // 非 HTML，直接透传
+        proxyRes.pipe(res);
+      } else {
+        // HTML，收集完整响应后再处理
+        const chunks = [];
+        proxyRes.on('data', chunk => chunks.push(chunk));
+        proxyRes.on('end', () => {
+          const body = Buffer.concat(chunks).toString('utf8');
+          const modifiedBody = body.replace('</head>', INJECTED_SCRIPT + '</head>');
+          res.end(modifiedBody);
+        });
+      }
+    });
+
+    proxy.web(req, res);
+  } else {
+    // 非 HTML 请求直接代理
+    proxy.web(req, res);
+  }
+});
+
+// WebSocket 升级处理
+server.on('upgrade', (req, socket, head) => {
+  if (!checkAuth(req)) {
+    socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+    socket.destroy();
+    return;
+  }
+
+  proxy.ws(req, socket, head);
+});
+
+// 启动服务器
+async function start() {
+  // 等待 OpenCode 启动
+  console.log("[wrapper] Waiting for OpenCode to start...");
+  const ready = await waitForOpencode();
+  if (!ready) {
+    console.error("[wrapper] OpenCode failed to start within timeout");
+    process.exit(1);
+  }
+  console.log("[wrapper] OpenCode is ready");
+
+  // 启动代理服务器
+  server.listen(PORT, "0.0.0.0", () => {
+    console.log(`[wrapper] Proxy server listening on port ${PORT}`);
+  });
+}
+
+start().catch(err => {
+  console.error("[wrapper] Failed to start:", err);
+  process.exit(1);
+});
+
 // 优雅关闭函数
 function gracefulShutdown(signal) {
   if (receivedSigterm) {
@@ -100,6 +339,11 @@ function gracefulShutdown(signal) {
   receivedSigterm = true;
 
   console.log(`[wrapper] Received ${signal}, initiating graceful shutdown...`);
+
+  // 关闭代理服务器
+  server.close(() => {
+    console.log("[wrapper] Proxy server closed");
+  });
 
   // 发送 SIGTERM 给子进程
   if (opencode.pid) {
@@ -132,5 +376,3 @@ process.on("unhandledRejection", (reason) => {
   console.error("[wrapper] Unhandled rejection:", reason);
   gracefulShutdown("unhandledRejection");
 });
-
-console.log("[wrapper] Ready, waiting for requests...");

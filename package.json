@@ -3,5 +3,8 @@
   "private": true,
   "scripts": {
     "start": "bash start.sh"
+  },
+  "dependencies": {
+    "http-proxy": "^1.18.1"
   }
 }

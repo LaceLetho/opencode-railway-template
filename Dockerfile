@@ -21,6 +21,10 @@ RUN bun install -g opencode-ai
 
 WORKDIR /app
 
+# Copy package files and install dependencies
+COPY package.json ./
+RUN npm install
+
 # Copy start script and server wrapper
 COPY start.sh server.js ./
 
