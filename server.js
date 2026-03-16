@@ -50,7 +50,7 @@ const opencode = spawn(
   "bunx",
   ["opencode", "web", "--port", INTERNAL_PORT, "--hostname", "127.0.0.1", "--print-logs", "--log-level", logLevel],
   {
-    cwd: "/data/workspace",
+    cwd: "/data/workspace/tradao",
     stdio: ["ignore", "pipe", "pipe"],
     env: process.env,
   }
