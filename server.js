@@ -10,6 +10,7 @@ const fs = require("fs");
 
 const PORT = process.env.PORT || "8080";
 const INTERNAL_PORT = process.env.INTERNAL_PORT || "18080";
+const PLUGIN_PORT = process.env.OPENCLAW_PLUGIN_PORT || "9090";
 const PASSWORD = process.env.OPENCODE_SERVER_PASSWORD;
 const USERNAME = process.env.OPENCODE_SERVER_USERNAME || "opencode";
 const logLevel = process.env.LOG_LEVEL?.toUpperCase() || "WARN";
@@ -40,6 +41,7 @@ delete process.env.OPENCODE_SERVER_PASSWORD;
 
 console.log(`Starting OpenCode Web on port ${PORT}...`);
 console.log(`Internal port: ${INTERNAL_PORT}`);
+console.log(`Plugin port: ${PLUGIN_PORT}`);
 console.log(`Workspace: /data/workspace`);
 console.log(`Log level: ${logLevel} (set LOG_LEVEL env var to change: DEBUG, INFO, WARN, ERROR)`);
 
@@ -185,6 +187,36 @@ const INJECTED_SCRIPT = `
 </script>
 `;
 
+// 插件端点列表 - 这些端点会路由到插件端口
+// 注意：只匹配精确的插件端点，避免与 OpenCode 的 /global/health 等端点冲突
+const PLUGIN_ENDPOINTS = ['/register'];
+const PLUGIN_PREFIXES = ['/register/'];
+
+// OpenCode HTTP API 端点前缀 - 这些端点路由到 OpenCode 服务
+const OPENCODE_API_PREFIXES = [
+  '/session',
+  '/global',
+  '/agents',
+  '/tools',
+  '/events',
+  '/v2',
+  '/api'
+];
+
+// 检查请求是否是插件端点
+function isPluginEndpoint(url) {
+  // 精确匹配
+  if (PLUGIN_ENDPOINTS.includes(url)) return true;
+  // 前缀匹配
+  if (PLUGIN_PREFIXES.some(prefix => url.startsWith(prefix))) return true;
+  return false;
+}
+
+// 检查请求是否是 OpenCode API 端点
+function isOpencodeApiEndpoint(url) {
+  return OPENCODE_API_PREFIXES.some(prefix => url === prefix || url.startsWith(prefix + '/'));
+}
+
 // 创建代理服务器
 const server = http.createServer((req, res) => {
   // 检查 Basic Auth
@@ -205,6 +237,16 @@ const server = http.createServer((req, res) => {
   const acceptHeader = req.headers.accept || '';
   const isSSE = acceptHeader.includes('text/event-stream');
 
+  // 确定目标端口：插件端点 -> 插件端口，其他 -> 内部 OpenCode 端口
+  const isPluginReq = isPluginEndpoint(req.url);
+  const targetPort = isPluginReq ? PLUGIN_PORT : INTERNAL_PORT;
+  const isApiReq = isOpencodeApiEndpoint(req.url);
+
+  // 调试日志：记录 API 请求
+  if (isApiReq || isPluginReq) {
+    console.log(`[proxy] ${req.method} ${req.url} -> ${isPluginReq ? 'plugin' : 'opencode'} port ${targetPort}`);
+  }
+
   // 准备转发 headers
   const forwardHeaders = { ...req.headers };
   delete forwardHeaders.host;
@@ -212,7 +254,7 @@ const server = http.createServer((req, res) => {
 
   const options = {
     hostname: "127.0.0.1",
-    port: INTERNAL_PORT,
+    port: targetPort,
     path: req.url,
     method: req.method,
     headers: forwardHeaders,

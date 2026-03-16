@@ -34,6 +34,7 @@ Optional variables:
 |----------|-------------|---------|
 | `OPENCODE_MODEL` | Default model to use | - |
 | `LOG_LEVEL` | Log verbosity (DEBUG, INFO, WARN, ERROR) | WARN |
+| `OPENCLAW_PLUGIN_PORT` | Port for OpenClaw plugin HTTP server | 9090 |
 
 ## Two ways to use
 
@@ -80,9 +81,8 @@ This template uses a Node.js proxy wrapper to add HTTP Basic Auth and automatic 
 Internet → Node.js Proxy (PORT 8080)
               ↓ (Basic Auth check)
               ↓ (HTML injection for auto-auth)
-         Internal OpenCode (PORT 18080)
-              ↓
-         app.opencode.ai (UI)
+         ├─→ Internal OpenCode (PORT 18080)  ─→ /session/*, /global/*, /agents, /tools, /events, Web UI
+         └─→ OpenClaw Plugin (PORT 9090)     ─→ /register
 ```
 
 ### Key Components
@@ -100,6 +100,28 @@ OpenCode's built-in web server requires authentication, but browsers don't autom
 2. Injects JavaScript into HTML pages to auto-authenticate API calls
 3. Properly handles WebSocket upgrades (browsers don't support WS URLs with credentials)
 4. Maintains SSE streaming for real-time AI responses
+
+## API Access
+
+The proxy exposes OpenCode HTTP API endpoints for external access (e.g., from `openclaw-opencode-cli`):
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /session` | Create a new session |
+| `GET /session/{id}` | Get session info |
+| `POST /session/{id}/prompt` | Send prompt to session |
+| `GET /session/status` | Get session status |
+| `GET /session/{id}/messages` | Get session messages |
+| `GET /global/health` | OpenCode health check |
+| `GET /agents` | List agents |
+| `GET /tools` | List tools |
+| `POST /register` | Register callback (plugin endpoint) |
+
+All API requests require HTTP Basic Auth:
+```bash
+curl -u opencode:YOUR_PASSWORD https://your-app.up.railway.app/session \
+  -X POST -H "Content-Type: application/json"
+```
 
 ## Troubleshooting
 
