@@ -35,6 +35,7 @@ Optional variables:
 | `OPENCODE_MODEL` | Default model to use | - |
 | `LOG_LEVEL` | Log verbosity (DEBUG, INFO, WARN, ERROR) | WARN |
 | `OPENCLAW_PLUGIN_PORT` | Port for OpenClaw plugin HTTP server | 9090 |
+| `ENABLE_MONITOR` | Enable OpenCode memory monitor auto-restart | true |
 
 ## Two ways to use
 
