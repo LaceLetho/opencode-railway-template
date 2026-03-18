@@ -362,7 +362,7 @@ function startMonitor() {
   const { spawn } = require("child_process");
 
   const monitorDir = "/tmp/opencode-railway-monitor";
-  const monitorScript = `${monitorDir}/opencode_monitor_v3_1.sh`;
+  const monitorScript = `${monitorDir}/opencode_monitor_v4.sh`;
 
   // 克隆或更新监控仓库
   const setupMonitor = () => {
