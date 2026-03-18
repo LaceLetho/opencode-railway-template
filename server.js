@@ -372,19 +372,31 @@ function startMonitor() {
     try {
       if (fs.existsSync(`${monitorDir}/.git`)) {
         console.log("[wrapper] Updating monitor repository...");
-        execSync("git pull --quiet", { cwd: monitorDir, stdio: "ignore" });
+        try {
+          execSync("git pull", { cwd: monitorDir, stdio: ["ignore", "pipe", "pipe"] });
+          console.log("[wrapper] Monitor repository updated successfully");
+        } catch (pullErr) {
+          console.error("[wrapper] Git pull failed:", pullErr.message);
+        }
       } else {
         console.log("[wrapper] Cloning monitor repository...");
         fs.rmSync(monitorDir, { recursive: true, force: true });
-        execSync("git clone --quiet https://github.com/LaceLetho/opencode-railway-monitor.git " + monitorDir, { stdio: "ignore" });
+        try {
+          execSync("git clone https://github.com/LaceLetho/opencode-railway-monitor.git " + monitorDir, { stdio: ["ignore", "pipe", "pipe"] });
+          console.log("[wrapper] Monitor repository cloned successfully");
+        } catch (cloneErr) {
+          console.error("[wrapper] Git clone failed:", cloneErr.message);
+          console.error("[wrapper] Make sure git is available and network is accessible");
+        }
       }
     } catch (err) {
       console.error("[wrapper] Failed to setup monitor repo:", err.message);
     }
 
     // 启动监控脚本
+    console.log("[wrapper] Checking for monitor script at:", monitorScript);
     if (fs.existsSync(monitorScript)) {
-      console.log("[wrapper] Launching monitor script...");
+      console.log("[wrapper] Monitor script found, launching...");
       fs.chmodSync(monitorScript, 0o755);
 
       const logStream = fs.createWriteStream("/tmp/opencode_monitor.log", { flags: "a" });
@@ -414,11 +426,20 @@ function startMonitor() {
         }
       });
 
+      monitor.on("error", (err) => {
+        console.error("[wrapper] Monitor process error:", err.message);
+      });
+
+      monitor.on("exit", (code, signal) => {
+        console.error(`[wrapper] Monitor process exited with code=${code}, signal=${signal}`);
+      });
+
       monitor.unref();
       fs.writeFileSync("/tmp/opencode_monitor.pid", monitor.pid.toString());
       console.log(`[wrapper] Monitor started (PID: ${monitor.pid})`);
     } else {
       console.error("[wrapper] Monitor script not found at:", monitorScript);
+      console.error("[wrapper] Directory contents:", fs.readdirSync(monitorDir).join(", "));
     }
   };
 
