@@ -36,6 +36,7 @@ Optional variables:
 | `LOG_LEVEL` | Log verbosity (DEBUG, INFO, WARN, ERROR) | WARN |
 | `OPENCLAW_PLUGIN_PORT` | Port for OpenClaw plugin HTTP server | 9090 |
 | `ENABLE_MONITOR` | Enable OpenCode memory monitor auto-restart | true |
+| `AUTH_REALM` | HTTP Basic Auth realm (for password manager compatibility) | opencode.tradao.xyz |
 
 ## Two ways to use
 
@@ -92,6 +93,7 @@ Internet → Node.js Proxy (PORT 8080)
 - **`Dockerfile`** — Installs Bun + `opencode-ai` CLI
 - **`start.sh`** — Entry point that starts the proxy
 - **`railway.toml`** — Railway configuration
+- **`monitor.sh`** — Memory monitor with auto-restart (see below)
 
 ### Why a Proxy?
 
@@ -101,6 +103,35 @@ OpenCode's built-in web server requires authentication, but browsers don't autom
 2. Injects JavaScript into HTML pages to auto-authenticate API calls
 3. Properly handles WebSocket upgrades (browsers don't support WS URLs with credentials)
 4. Maintains SSE streaming for real-time AI responses
+
+## Memory Monitor
+
+This template includes an embedded memory monitor (`monitor.sh`) that automatically restarts OpenCode when idle to prevent memory leaks.
+
+### Why it's needed
+
+OpenCode spawns MCP/LSP processes per session that accumulate over time, causing memory to grow from ~100MB to 6GB+. The monitor detects true idle states and triggers Railway redeployment before crashes occur.
+
+### How it works
+
+- **SSE Event Monitoring**: Connects to `/global/event` endpoint to detect user activity in real-time
+- **Smart Idle Detection**: Only restarts when all sessions are idle for 10+ minutes AND no AI generation is in progress
+- **Graceful Shutdown**: Waits for 60s cooling period after generation before considering restart
+- **Railway API Integration**: Uses GraphQL API to trigger deployment restart (requires `RAILWAY_API_TOKEN`)
+
+### Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `IDLE_TIME_MINUTES` | 10 | Minutes of inactivity before restart |
+| `MEMORY_THRESHOLD_MB` | 2000 | Memory limit that triggers restart |
+| `CHECK_INTERVAL_SECONDS` | 60 | How often to check status |
+| `GENERATION_GRACE_SECONDS` | 60 | Wait time after AI generation |
+| `RAILWAY_API_TOKEN` | - | Required for auto-restart via API |
+
+### Disabling the monitor
+
+Set `ENABLE_MONITOR=false` in Railway environment variables. Defaults to `true`.
 
 ## API Access
 
