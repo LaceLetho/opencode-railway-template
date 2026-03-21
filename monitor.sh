@@ -19,6 +19,7 @@ LAST_GENERATION_FILE="$STATE_DIR/last_generation_time"
 EVENT_MONITOR_PID_FILE="$STATE_DIR/event_monitor.pid"
 
 RAILWAY_API_TOKEN="${RAILWAY_API_TOKEN:-}"
+# These are automatically injected by Railway - no need to set manually
 RAILWAY_PROJECT_ID="${RAILWAY_PROJECT_ID:-}"
 RAILWAY_ENVIRONMENT_ID="${RAILWAY_ENVIRONMENT_ID:-}"
 RAILWAY_SERVICE_ID="${RAILWAY_SERVICE_ID:-}"

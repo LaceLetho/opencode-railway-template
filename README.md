@@ -36,6 +36,7 @@ Optional variables:
 | `LOG_LEVEL` | Log verbosity (DEBUG, INFO, WARN, ERROR) | WARN |
 | `OPENCLAW_PLUGIN_PORT` | Port for OpenClaw plugin HTTP server | 9090 |
 | `ENABLE_MONITOR` | Enable OpenCode memory monitor auto-restart | true |
+| `AUTH_REALM` | HTTP Basic Auth realm (for password manager compatibility) | opencode.tradao.xyz |
 
 ## Two ways to use
 
@@ -130,7 +131,7 @@ OpenCode spawns MCP/LSP processes per session that accumulate over time, causing
 
 ### Disabling the monitor
 
-Set `ENABLE_MONITOR=false` in Railway environment variables.
+Set `ENABLE_MONITOR=false` in Railway environment variables. Defaults to `true`.
 
 ## API Access
 

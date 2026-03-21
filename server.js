@@ -13,6 +13,7 @@ const INTERNAL_PORT = process.env.INTERNAL_PORT || "18080";
 const PLUGIN_PORT = process.env.OPENCLAW_PLUGIN_PORT || "9090";
 const PASSWORD = process.env.OPENCODE_SERVER_PASSWORD;
 const USERNAME = process.env.OPENCODE_SERVER_USERNAME || "opencode";
+const AUTH_REALM = process.env.AUTH_REALM || "opencode.tradao.xyz";
 const logLevel = process.env.LOG_LEVEL?.toUpperCase() || "WARN";
 
 if (!PASSWORD) {
@@ -222,7 +223,7 @@ const server = http.createServer((req, res) => {
   // 检查 Basic Auth
   if (!checkAuth(req)) {
     res.writeHead(401, {
-      "WWW-Authenticate": 'Basic realm="opencode.tradao.xyz"',
+      "WWW-Authenticate": `Basic realm="${AUTH_REALM}"`,
       "Content-Type": "text/plain"
     });
     res.end("Authentication required\n");
