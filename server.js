@@ -222,7 +222,7 @@ const server = http.createServer((req, res) => {
   // 检查 Basic Auth
   if (!checkAuth(req)) {
     res.writeHead(401, {
-      "WWW-Authenticate": 'Basic realm="OpenCode"',
+      "WWW-Authenticate": 'Basic realm="opencode.tradao.xyz"',
       "Content-Type": "text/plain"
     });
     res.end("Authentication required\n");
