@@ -256,10 +256,8 @@ const server = http.createServer((req, res) => {
   // 确定目标端口：插件端点 -> 插件端口，其他 -> 内部 OpenCode 端口
   const targetPort = isPluginReq ? PLUGIN_PORT : INTERNAL_PORT;
 
-  // 调试日志：记录 API/WebSocket 请求
-  if (isApiReq || isPluginReq || isSSE || isWebSocketUpgrade) {
-    console.log(`[proxy] ${req.method} ${req.url} -> ${isPluginReq ? 'plugin' : 'opencode'} port ${targetPort} (API:${isApiReq}, SSE:${isSSE}, WS:${isWebSocketUpgrade})`);
-  }
+  // 调试日志：记录所有请求以便调试
+  console.log(`[proxy] ${req.method} ${req.url} -> ${isPluginReq ? 'plugin' : 'opencode'} port ${targetPort} (API:${isApiReq}, SSE:${isSSE}, WS:${isWebSocketUpgrade}, HTML:${isHtmlRequest})`);
 
   // 准备转发 headers
   const forwardHeaders = { ...req.headers };
