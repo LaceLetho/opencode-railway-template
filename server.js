@@ -334,6 +334,7 @@ function renderLoginPage(message = "") {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#f6f3ee" />
     <title>OpenCode Login</title>
     <style>
@@ -445,6 +446,16 @@ function isHtmlNavigation(req, pathname, isApiReq, isPluginReq) {
 // 注意：只匹配精确的插件端点，避免与 OpenCode 的 /global/health 等端点冲突
 const PLUGIN_ENDPOINTS = ['/register'];
 const PLUGIN_PREFIXES = ['/register/'];
+const PUBLIC_PATHS = new Set([
+  "/favicon.ico",
+  "/favicon-v3.ico",
+  "/favicon-v3.svg",
+  "/favicon-96x96-v3.png",
+  "/apple-touch-icon-v3.png",
+  "/site.webmanifest",
+  "/web-app-manifest-192x192.png",
+  "/web-app-manifest-512x512.png",
+]);
 
 // OpenCode HTTP API 端点前缀 - 这些端点路由到 OpenCode 服务
 const OPENCODE_API_PREFIXES = [
@@ -471,6 +482,10 @@ function isPluginEndpoint(url) {
 function isOpencodeApiEndpoint(url) {
   const pathname = pathnameOf(url);
   return OPENCODE_API_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(prefix + '/'));
+}
+
+function isPublicPath(pathname) {
+  return PUBLIC_PATHS.has(pathname);
 }
 
 function handleLoginPage(res, message) {
@@ -545,8 +560,9 @@ const server = http.createServer(async (req, res) => {
   const pathname = pathnameOf(req.url);
   const isApiReq = isOpencodeApiEndpoint(req.url);
   const isPluginReq = isPluginEndpoint(req.url);
+  const isPublicReq = isPublicPath(pathname);
 
-  if (pathname === "/login" && req.method === "GET") {
+  if (pathname === "/login" && (req.method === "GET" || req.method === "HEAD")) {
     handleLoginPage(res);
     return;
   }
@@ -559,6 +575,11 @@ const server = http.createServer(async (req, res) => {
   if (pathname === "/logout" && (req.method === "POST" || req.method === "GET")) {
     clearSessionCookie(res);
     redirect(res, "/login");
+    return;
+  }
+
+  if (isPublicReq) {
+    proxyRequest(req, res, INTERNAL_PORT);
     return;
   }
 
