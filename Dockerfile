@@ -22,12 +22,6 @@ RUN bun --version
 # Install OpenCode CLI
 RUN bun install -g opencode-ai
 
-# Install OpenClaw plugin for OpenCode
-RUN bun install -g @laceletho/plugin-openclaw
-
-# Ensure both Bun and npm global modules are discoverable
-ENV NODE_PATH="/root/.bun/install/global/node_modules:/usr/local/lib/node_modules"
-
 WORKDIR /app
 
 # Copy package files and install dependencies

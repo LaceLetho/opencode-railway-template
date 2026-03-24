@@ -44,7 +44,8 @@ delete process.env.OPENCODE_SERVER_PASSWORD;
 // Set OpenClaw plugin environment variables
 process.env.OPENCLAW_PORT = PLUGIN_PORT;
 
-// Ensure opencode.json config file includes the OpenClaw plugin.
+// Ensure opencode.json config file declares the OpenClaw plugin.
+// OpenCode will install and load the plugin at runtime from this config.
 // Note: the correct config key is "plugin" (singular), not "plugins".
 function ensurePluginConfig() {
   const configPath = "/data/.config/opencode/opencode.json";
