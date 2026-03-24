@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * OpenCode Railway Wrapper
- * 提供优雅关闭、日志分类和 Basic Auth 代理功能
+ * Provides graceful shutdown, log classification, and Basic Auth proxying
  */
 
 const http = require("http");
@@ -27,7 +27,7 @@ if (!PASSWORD) {
   process.exit(1);
 }
 
-// 创建持久化目录
+// Create persistent directories
 const dirs = [
   "/data/workspace",
   "/data/.local/share/opencode",
@@ -38,11 +38,11 @@ for (const dir of dirs) {
   fs.mkdirSync(dir, { recursive: true });
 }
 
-// 设置环境变量
+// Set environment variables
 process.env.HOME = "/data";
 process.env.OPENCODE_CONFIG_DIR = "/data/.config/opencode";
 process.env.OPENCODE_CONFIG = "/data/.config/opencode/config.json";
-// 内部 OpenCode 不需要 Basic Auth，由代理层处理
+// Internal OpenCode does not need Basic Auth; the proxy layer handles it
 process.env.OPENCODE_SERVER_PASSWORD = "";
 delete process.env.OPENCODE_SERVER_PASSWORD;
 
@@ -96,7 +96,7 @@ if (debugTraffic) {
   console.log("OpenCode traffic debug logging enabled");
 }
 
-// 启动无头 opencode server（内部端口，不直接暴露）
+// Start headless opencode server (internal port, not publicly exposed)
 const opencode = spawn(
   "bunx",
   ["opencode", "--print-logs", "--log-level", logLevel, "serve", "--port", INTERNAL_PORT, "--hostname", "127.0.0.1"],
@@ -137,7 +137,7 @@ function shouldSuppressLog(trimmed) {
   return false;
 }
 
-// 日志分类：ERROR/WARN -> stderr，其他 -> stdout
+// Log classification: ERROR/WARN -> stderr, others -> stdout
 function classifyAndOutput(line) {
   const trimmed = line.toString().trim();
   if (!trimmed) return;
@@ -150,7 +150,7 @@ function classifyAndOutput(line) {
   }
 }
 
-// 处理 stdout
+// Handle stdout
 opencode.stdout?.on("data", (data) => {
   const lines = data.toString().split("\n");
   for (const line of lines) {
@@ -158,7 +158,7 @@ opencode.stdout?.on("data", (data) => {
   }
 });
 
-// 处理 stderr
+// Handle stderr
 opencode.stderr?.on("data", (data) => {
   const lines = data.toString().split("\n");
   for (const line of lines) {
@@ -166,19 +166,19 @@ opencode.stderr?.on("data", (data) => {
   }
 });
 
-// 错误处理
+// Error handling
 opencode.on("error", (err) => {
   console.error(`[wrapper] Failed to spawn opencode: ${err.message}`);
   process.exit(1);
 });
 
-// 进程退出处理
+// Process exit handling
 opencode.on("exit", (code, signal) => {
   console.log(`[wrapper] opencode exited with code=${code}, signal=${signal}`);
   process.exit(code ?? 0);
 });
 
-// 等待 OpenCode 启动
+// Wait for OpenCode startup
 async function waitForOpencode(timeoutMs = 30000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -188,7 +188,7 @@ async function waitForOpencode(timeoutMs = 30000) {
         return true;
       }
     } catch {
-      // 还没准备好
+      // Not ready yet
     }
     await new Promise(r => setTimeout(r, 100));
   }
@@ -442,8 +442,8 @@ function isHtmlNavigation(req, pathname, isApiReq, isPluginReq) {
   return accept.includes("text/html") || accept.includes("*/*") || accept === "";
 }
 
-// 插件端点列表 - 这些端点会路由到插件端口
-// 注意：只匹配精确的插件端点，避免与 OpenCode 的 /global/health 等端点冲突
+// Plugin endpoint list - these endpoints route to the plugin port
+// Note: only match exact plugin endpoints to avoid conflicts with OpenCode endpoints like /global/health
 const PLUGIN_ENDPOINTS = ['/register'];
 const PLUGIN_PREFIXES = ['/register/'];
 const PUBLIC_PATHS = new Set([
@@ -457,7 +457,7 @@ const PUBLIC_PATHS = new Set([
   "/web-app-manifest-512x512.png",
 ]);
 
-// OpenCode HTTP API 端点前缀 - 这些端点路由到 OpenCode 服务
+// OpenCode HTTP API endpoint prefixes - these endpoints route to OpenCode service
 const OPENCODE_API_PREFIXES = [
   '/session',
   '/global',
@@ -468,17 +468,17 @@ const OPENCODE_API_PREFIXES = [
   '/api'
 ];
 
-// 检查请求是否是插件端点
+// Check whether a request targets a plugin endpoint
 function isPluginEndpoint(url) {
   const pathname = pathnameOf(url);
-  // 精确匹配
+  // Exact match
   if (PLUGIN_ENDPOINTS.includes(pathname)) return true;
-  // 前缀匹配
+  // Prefix match
   if (PLUGIN_PREFIXES.some(prefix => pathname.startsWith(prefix))) return true;
   return false;
 }
 
-// 检查请求是否是 OpenCode API 端点
+// Check whether a request targets an OpenCode API endpoint
 function isOpencodeApiEndpoint(url) {
   const pathname = pathnameOf(url);
   return OPENCODE_API_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(prefix + '/'));
@@ -593,7 +593,7 @@ function proxyRequest(req, res, targetPort) {
   req.pipe(proxyReq);
 }
 
-// 创建代理服务器
+// Create proxy server
 const server = http.createServer(async (req, res) => {
   const pathname = pathnameOf(req.url);
   const isApiReq = isOpencodeApiEndpoint(req.url);
@@ -638,7 +638,7 @@ const server = http.createServer(async (req, res) => {
   proxyRequest(req, res, targetPort);
 });
 
-// WebSocket 升级处理
+// WebSocket upgrade handling
 server.on('upgrade', (req, socket, head) => {
   if (!isAuthenticated(req)) {
     socket.write(`HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm="${AUTH_REALM}"\r\nConnection: close\r\n\r\n`);
@@ -657,7 +657,7 @@ server.on('upgrade', (req, socket, head) => {
   });
 });
 
-// 启动监控脚本
+// Start monitor script
 function startMonitor() {
   const enableMonitor = process.env.ENABLE_MONITOR !== "false";
   if (!enableMonitor) {
@@ -679,7 +679,7 @@ function startMonitor() {
       stdio: ["ignore", "pipe", "pipe"],
     });
 
-    // 只记录错误级别日志到控制台，全部日志写入文件
+    // Only write error-level logs to console; write all logs to file
     monitor.stdout.on("data", (data) => {
       logStream.write(data.toString());
     });
@@ -703,9 +703,9 @@ function startMonitor() {
   }
 }
 
-// 启动服务器
+// Start server
 async function start() {
-  // 等待 OpenCode 启动
+  // Wait for OpenCode startup
   console.log("[wrapper] Waiting for OpenCode to start...");
   const ready = await waitForOpencode();
   if (!ready) {
@@ -714,10 +714,10 @@ async function start() {
   }
   console.log("[wrapper] OpenCode is ready");
 
-  // 启动监控（在OpenCode就绪后）
+  // Start monitor (after OpenCode is ready)
   startMonitor();
 
-  // 启动代理服务器
+  // Start proxy server
   server.listen(PORT, "0.0.0.0", () => {
     console.log(`[wrapper] Proxy server listening on port ${PORT}`);
   });
@@ -728,7 +728,7 @@ start().catch(err => {
   process.exit(1);
 });
 
-// 优雅关闭函数
+// Graceful shutdown function
 function gracefulShutdown(signal) {
   if (receivedSigterm) {
     console.log(`[wrapper] Already shutting down, ignoring ${signal}`);
@@ -738,12 +738,12 @@ function gracefulShutdown(signal) {
 
   console.log(`[wrapper] Received ${signal}, initiating graceful shutdown...`);
 
-  // 关闭代理服务器
+  // Close proxy server
   server.close(() => {
     console.log("[wrapper] Proxy server closed");
   });
 
-  // 发送 SIGTERM 给子进程
+  // Send SIGTERM to child process
   if (opencode.pid) {
     try {
       opencode.kill("SIGTERM");
@@ -753,18 +753,18 @@ function gracefulShutdown(signal) {
     }
   }
 
-  // 5秒超时后强制退出
+  // Force exit after 5s timeout
   setTimeout(() => {
     console.error("[wrapper] Graceful shutdown timeout (5s), forcing exit");
     process.exit(1);
   }, 5000);
 }
 
-// 注册信号处理
+// Register signal handlers
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
-// 意外错误处理
+// Unexpected error handling
 process.on("uncaughtException", (err) => {
   console.error("[wrapper] Uncaught exception:", err);
   gracefulShutdown("uncaughtException");

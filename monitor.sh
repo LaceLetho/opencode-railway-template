@@ -1,10 +1,10 @@
 #!/bin/bash
-# OpenCode Railway 智能监测 - v4.1 (Global SSE)
-# 改进：使用 /global/event SSE 端点检测全局活动，修复进程 PID 匹配
+# OpenCode Railway Smart Monitor - v4.1 (Global SSE)
+# Improvements: use /global/event SSE endpoint to detect global activity and fix PID matching
 
 set -uo pipefail
 
-# ==================== 配置 ====================
+# ==================== Configuration ====================
 IDLE_TIME_MINUTES=${IDLE_TIME_MINUTES:-10}
 CHECK_INTERVAL_SECONDS=${CHECK_INTERVAL_SECONDS:-60}
 MEMORY_THRESHOLD_MB=${MEMORY_THRESHOLD_MB:-2000}
@@ -58,11 +58,11 @@ get_current_deployment_id() {
 }
 
 trigger_deployment_restart() {
-    log "  🚀 调用Railway API重启当前部署..."
+    log "  🚀 Calling Railway API to restart current deployment..."
     
     if [ -z "$RAILWAY_API_TOKEN" ] || [ -z "$RAILWAY_PROJECT_ID" ] || [ -z "$RAILWAY_ENVIRONMENT_ID" ] || [ -z "$RAILWAY_SERVICE_ID" ]; then
-        log "  ⚠️ 未设置必要的环境变量，跳过API重启"
-        log "     请设置环境变量: RAILWAY_API_TOKEN, RAILWAY_PROJECT_ID, RAILWAY_ENVIRONMENT_ID, RAILWAY_SERVICE_ID"
+        log "  ⚠️ Required environment variables are not set, skipping API restart"
+        log "     Please set: RAILWAY_API_TOKEN, RAILWAY_PROJECT_ID, RAILWAY_ENVIRONMENT_ID, RAILWAY_SERVICE_ID"
         return 1
     fi
     
@@ -71,12 +71,12 @@ trigger_deployment_restart() {
     deployment_id=$(get_current_deployment_id)
     
     if [ -z "$deployment_id" ]; then
-        log "  ⚠️ 无法获取当前部署ID，尝试重新部署..."
+        log "  ⚠️ Failed to get current deployment ID, trying redeploy..."
         trigger_railway_redeploy
         return $?
     fi
     
-    log "  📦 当前部署ID: $deployment_id"
+    log "  📦 Current deployment ID: $deployment_id"
     
     local graphql_query='{"query": "mutation deploymentRestart($id: String!) { deploymentRestart(id: $id) }", "variables": { "id": "'"$deployment_id"'" } }'
     
@@ -89,22 +89,22 @@ trigger_deployment_restart() {
     local http_code=$?
     
     if [ $http_code -eq 0 ] && echo "$response" | grep -q "deploymentRestart"; then
-        log "  ✅ Railway部署重启已触发"
+        log "  ✅ Railway deployment restart triggered"
         return 0
     else
-        log "  ⚠️ Railway API调用失败: $response"
-        log "  🔄 尝试重新部署..."
+        log "  ⚠️ Railway API call failed: $response"
+        log "  🔄 Trying redeploy..."
         trigger_railway_redeploy
         return $?
     fi
 }
 
 trigger_railway_redeploy() {
-    log "  🚀 调用Railway API触发重新部署..."
+    log "  🚀 Calling Railway API to trigger redeploy..."
     
     if [ -z "$RAILWAY_API_TOKEN" ] || [ -z "$RAILWAY_PROJECT_ID" ] || [ -z "$RAILWAY_ENVIRONMENT_ID" ] || [ -z "$RAILWAY_SERVICE_ID" ]; then
-        log "  ⚠️ 未设置必要的环境变量，跳过API部署"
-        log "     请设置环境变量: RAILWAY_API_TOKEN, RAILWAY_PROJECT_ID, RAILWAY_ENVIRONMENT_ID, RAILWAY_SERVICE_ID"
+        log "  ⚠️ Required environment variables are not set, skipping API deploy"
+        log "     Please set: RAILWAY_API_TOKEN, RAILWAY_PROJECT_ID, RAILWAY_ENVIRONMENT_ID, RAILWAY_SERVICE_ID"
         return 1
     fi
     
@@ -119,22 +119,22 @@ trigger_railway_redeploy() {
     local http_code=$?
     
     if [ $http_code -eq 0 ] && echo "$response" | grep -q "environmentTriggersDeploy"; then
-        log "  ✅ Railway重新部署已触发"
+        log "  ✅ Railway redeploy triggered"
         return 0
     else
-        log "  ⚠️ Railway API调用失败: $response"
+        log "  ⚠️ Railway API call failed: $response"
         return 1
     fi
 }
 
-# ==================== 获取OpenCode进程ID ====================
+# ==================== Get OpenCode Process ID ====================
 get_opencode_pid() {
     pgrep -f "/\.opencode web" | head -1
 }
 
-# ==================== 方法1: SSE事件流监控 ====================
+# ==================== Method 1: SSE Event Stream Monitoring ====================
 start_event_monitor() {
-    # 后台运行事件监控（静默模式）
+    # Run event monitoring in background (silent mode)
     (
         while true; do
             curl -N -s "${API_URL}/global/event" 2>/dev/null | while read -r line; do
@@ -157,13 +157,13 @@ stop_event_monitor() {
         local pid=$(cat "$EVENT_MONITOR_PID_FILE")
         if kill -0 "$pid" 2>/dev/null; then
             kill "$pid" 2>/dev/null || true
-            log "  [SSE] 事件监控已停止"
+            log "  [SSE] Event monitoring stopped"
         fi
         rm -f "$EVENT_MONITOR_PID_FILE"
     fi
 }
 
-# ==================== 活动检测 ====================
+# ==================== Activity Detection ====================
 is_generating_content() {
     local pid
     pid=$(get_opencode_pid)
@@ -172,7 +172,7 @@ is_generating_content() {
     local is_generating=0
     local reasons=""
     
-    # 检测 1: SSE活动（检查最后活动时间）
+    # Check 1: SSE activity (check last activity timestamp)
     if [ -f "$LAST_ACTIVITY_FILE" ]; then
         local last_activity=$(cat "$LAST_ACTIVITY_FILE")
         local current=$(date +%s)
@@ -180,12 +180,12 @@ is_generating_content() {
         
         if [ "$time_since_activity" -lt 15 ]; then
             is_generating=1
-            reasons="${reasons}SSE活动(${time_since_activity}s) "
+            reasons="${reasons}SSE activity(${time_since_activity}s) "
             date +%s > "$LAST_GENERATION_FILE"
         fi
     fi
     
-    # 检测 2: 冷却期
+    # Check 2: Cooldown window
     if [ -f "$LAST_GENERATION_FILE" ]; then
         local last_gen
         last_gen=$(cat "$LAST_GENERATION_FILE")
@@ -194,7 +194,7 @@ is_generating_content() {
         local time_since_gen=$((current - last_gen))
         if [ "$time_since_gen" -lt "$GENERATION_GRACE_SECONDS" ]; then
             is_generating=1
-            reasons="${reasons}冷却期(${time_since_gen}s) "
+            reasons="${reasons}cooldown(${time_since_gen}s) "
         fi
     fi
     
@@ -207,49 +207,49 @@ is_generating_content() {
     fi
 }
 
-# ==================== 获取内存使用 ====================
+# ==================== Get Memory Usage ====================
 get_memory_mb() {
-    # 统计所有用户进程的 RSS 总和
+    # Sum RSS of all user processes
     local total_kb=$(ps aux | awk 'NR>1 {sum+=$6} END {print sum}' 2>/dev/null || echo 0)
     echo $((total_kb / 1024))
 }
 
-# ==================== 重启 ====================
+# ==================== Restart ====================
 restart_opencode() {
     local reason="$1"
     local mem_before
     mem_before=$(get_memory_mb)
     
     log "========================================"
-    log "🔄 触发 OpenCode 重新部署"
-    log "  原因: $reason"
-    log "  当前内存: ${mem_before}MB"
+    log "🔄 Triggering OpenCode redeploy"
+    log "  Reason: $reason"
+    log "  Current memory: ${mem_before}MB"
     
     stop_event_monitor
     
     rm -f "$LAST_GENERATION_FILE" "$LAST_ACTIVITY_FILE"
     
-    # 直接调用 Railway API 触发部署重启
+    # Call Railway API directly to trigger deployment restart
     trigger_deployment_restart
     
-    log "  ✅ 部署重启请求已发送"
+    log "  ✅ Deployment restart request sent"
     log "========================================"
     
-    # 继续监控，等待 Railway 重新部署容器
+    # Continue monitoring while Railway redeploys the container
     sleep 60
 }
 
-# ==================== 主循环 ====================
+# ==================== Main Loop ====================
 main() {
     local start_time
     start_time=$(date +%s)
     local consecutive_checks=0
     local check_count=0
     
-    # 初始化活动时间
+    # Initialize activity timestamp
     date +%s > "$LAST_ACTIVITY_FILE"
     
-    # 启动SSE事件监控
+    # Start SSE event monitoring
     start_event_monitor
     
     log "🚀 Monitor started"
@@ -269,28 +269,28 @@ main() {
         uptime=$(($(date +%s) - start_time))
         local uptime_hours=$((uptime / 3600))
         
-        # 检查生成状态
+        # Check generation state
         local gen_status
         gen_status=$(is_generating_content)
         local gen_state
         gen_state=$(echo "$gen_status" | cut -d'|' -f1)
         
-        # 如果正在生成，重置计数
+        # If generating, reset counters
         if [ "$gen_state" = "GENERATING" ]; then
             consecutive_checks=0
             sleep "$CHECK_INTERVAL_SECONDS"
             continue
         fi
         
-        # 检查是否空闲
+        # Check whether idle
         if [ -f "$LAST_ACTIVITY_FILE" ]; then
             local last_activity=$(cat "$LAST_ACTIVITY_FILE")
             local current=$(date +%s)
             local idle_time=$(( (current - last_activity) / 60 ))
             
             if [ $idle_time -ge "$IDLE_TIME_MINUTES" ] && [ "$current_mem" -gt "$MEMORY_THRESHOLD_MB" ]; then
-                log "💤 空闲 ${idle_time} 分钟且内存占用 ${current_mem}MB，执行重启"
-                restart_opencode "空闲且高内存"
+                log "💤 Idle for ${idle_time} minutes with memory at ${current_mem}MB, restarting"
+                restart_opencode "idle with high memory"
             fi
         fi
         
@@ -298,5 +298,5 @@ main() {
     done
 }
 
-trap 'log "🛑 监测退出"; stop_event_monitor; exit 0' SIGINT SIGTERM
+trap 'log "🛑 Monitor exiting"; stop_event_monitor; exit 0' SIGINT SIGTERM
 main "$@"
