@@ -488,13 +488,51 @@ function isPublicPath(pathname) {
   return PUBLIC_PATHS.has(pathname);
 }
 
+function normalizeCspValue(value) {
+  if (!value) return "";
+  return Array.isArray(value) ? value.join("; ") : value;
+}
+
+function appendCspSource(policy, directive, source) {
+  const trimmed = policy.trim();
+  if (!trimmed) return `${directive} ${source}`;
+
+  const parts = trimmed
+    .split(";")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const index = parts.findIndex((part) => part === directive || part.startsWith(`${directive} `));
+  if (index === -1) {
+    parts.push(`${directive} ${source}`);
+    return parts.join("; ");
+  }
+
+  const tokens = parts[index].split(/\s+/);
+  if (!tokens.includes(source)) {
+    tokens.push(source);
+    parts[index] = tokens.join(" ");
+  }
+  return parts.join("; ");
+}
+
+function applyCspRelaxation(headers) {
+  const next = { ...headers };
+  let policy = normalizeCspValue(next["content-security-policy"]);
+  if (!policy) return next;
+
+  policy = appendCspSource(policy, "script-src", "https://static.cloudflareinsights.com");
+  policy = appendCspSource(policy, "connect-src", "https://opencode.ai");
+  next["content-security-policy"] = policy;
+  return next;
+}
+
 function handleLoginPage(res, message) {
   const body = renderLoginPage(message);
   res.writeHead(200, {
     "Content-Type": "text/html; charset=utf-8",
     "Content-Length": Buffer.byteLength(body),
     "Cache-Control": "no-store",
-    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; img-src 'self' data:; base-uri 'none'",
+    "Content-Security-Policy": "default-src 'none'; script-src https://static.cloudflareinsights.com; style-src 'unsafe-inline'; form-action 'self'; img-src 'self' data: https:; base-uri 'none'",
   });
   res.end(body);
 }
@@ -540,7 +578,7 @@ function proxyRequest(req, res, targetPort) {
   };
 
   const proxyReq = http.request(options, (proxyRes) => {
-    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    res.writeHead(proxyRes.statusCode, applyCspRelaxation(proxyRes.headers));
     proxyRes.pipe(res);
   });
 
