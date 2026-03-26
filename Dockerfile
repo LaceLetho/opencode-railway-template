@@ -1,8 +1,7 @@
 FROM node:22-bookworm
 
 ENV NODE_ENV=production
-ARG OPENCODE_VERSION=1.3.0
-ARG OPENCODE_REF=
+ARG OPENCODE_REF=v1.3.0
 
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -23,7 +22,7 @@ RUN bun --version
 
 # Build OpenCode from source so the frontend and backend always come from the same ref.
 ENV OPENCODE_SOURCE_DIR="/opt/opencode"
-RUN ref="${OPENCODE_REF:-v${OPENCODE_VERSION}}" \
+RUN ref="${OPENCODE_REF}" \
   && git clone https://github.com/anomalyco/opencode "${OPENCODE_SOURCE_DIR}" \
   && cd "${OPENCODE_SOURCE_DIR}" \
   && git checkout "${ref}" \
