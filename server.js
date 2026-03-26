@@ -444,7 +444,14 @@ function pathnameOf(url) {
   return url.split("?")[0].split("#")[0];
 }
 
+function isDirectorySessionRoute(pathname) {
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts.length < 2) return false;
+  return parts[1] === "session";
+}
+
 function decodeRouteDirectory(pathname) {
+  if (!isDirectorySessionRoute(pathname)) return;
   const parts = pathname.split("/").filter(Boolean);
   const slug = parts[0];
   if (!slug) return;
@@ -476,7 +483,9 @@ function isHtmlNavigation(req, pathname, isApiReq, isPluginReq) {
   if (isApiReq || isPluginReq) return false;
   if (isStaticAsset(pathname)) return false;
   const accept = req.headers.accept || "";
-  return accept.includes("text/html") || accept.includes("*/*") || accept === "";
+  if (req.headers["sec-fetch-dest"] === "document") return true;
+  if (req.headers["sec-fetch-mode"] === "navigate") return true;
+  return accept.includes("text/html");
 }
 
 // Plugin endpoint list - these endpoints route to the plugin port
@@ -637,12 +646,6 @@ const server = http.createServer(async (req, res) => {
   const isPluginReq = isPluginEndpoint(req.url);
   const isPublicReq = isPublicPath(pathname);
 
-  if (isHtmlNavigation(req, pathname, isApiReq, isPluginReq) && !hasValidRouteDirectory(pathname)) {
-    console.warn(`[wrapper] Missing route directory for ${pathname}, redirecting to workspace root`);
-    redirect(res, rootSessionLocation());
-    return;
-  }
-
   if (pathname === "/login" && (req.method === "GET" || req.method === "HEAD")) {
     handleLoginPage(res);
     return;
@@ -661,6 +664,12 @@ const server = http.createServer(async (req, res) => {
 
   if (isPublicReq) {
     proxyRequest(req, res, INTERNAL_PORT);
+    return;
+  }
+
+  if (isHtmlNavigation(req, pathname, isApiReq, isPluginReq) && !hasValidRouteDirectory(pathname)) {
+    console.warn(`[wrapper] Missing route directory for ${pathname}, redirecting to workspace root`);
+    redirect(res, rootSessionLocation());
     return;
   }
 
