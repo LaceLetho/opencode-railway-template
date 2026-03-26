@@ -23,11 +23,16 @@ RUN bun --version
 # Build OpenCode from source so the frontend and backend always come from the same ref.
 ENV OPENCODE_SOURCE_DIR="/opt/opencode"
 RUN ref="${OPENCODE_REF}" \
+  && version="" \
+  && channel="" \
+  && case "${ref}" in \
+    v[0-9]*|[0-9]*) version="${ref#v}"; channel="latest" ;; \
+  esac \
   && git clone https://github.com/anomalyco/opencode "${OPENCODE_SOURCE_DIR}" \
   && cd "${OPENCODE_SOURCE_DIR}" \
   && git checkout "${ref}" \
-  && bun install \
-  && bun run --cwd packages/opencode build --single
+  && if [ -n "${version}" ]; then OPENCODE_VERSION="${version}" OPENCODE_CHANNEL="${channel}" bun install; else bun install; fi \
+  && if [ -n "${version}" ]; then OPENCODE_VERSION="${version}" OPENCODE_CHANNEL="${channel}" bun run --cwd packages/opencode build --single; else bun run --cwd packages/opencode build --single; fi
 
 WORKDIR /app
 
