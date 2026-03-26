@@ -2,6 +2,7 @@ FROM node:22-bookworm
 
 ENV NODE_ENV=production
 ARG OPENCODE_VERSION=1.3.2
+ARG OPENCODE_REF=
 
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -20,8 +21,14 @@ ENV PATH="$BUN_INSTALL/bin:$PATH"
 # Verify bun
 RUN bun --version
 
-# Install a pinned OpenCode version so redeploys do not silently drift.
-RUN bun install -g opencode-ai@${OPENCODE_VERSION}
+# Build OpenCode from source so the frontend and backend always come from the same ref.
+ENV OPENCODE_SOURCE_DIR="/opt/opencode"
+RUN ref="${OPENCODE_REF:-v${OPENCODE_VERSION}}" \
+  && git clone https://github.com/anomalyco/opencode "${OPENCODE_SOURCE_DIR}" \
+  && cd "${OPENCODE_SOURCE_DIR}" \
+  && git checkout "${ref}" \
+  && bun install \
+  && bun run --cwd packages/opencode build --single
 
 WORKDIR /app
 

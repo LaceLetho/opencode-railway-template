@@ -34,6 +34,34 @@ function resolveOpencodeLaunch(opts) {
   const envPath = env.PATH || "";
   const bunInstall = env.BUN_INSTALL || "/root/.bun";
   const binDir = path.join(bunInstall, "bin");
+  const sourceDir = env.OPENCODE_SOURCE_DIR || "/opt/opencode";
+  const compiledDir = path.join(sourceDir, "packages", "opencode", "dist");
+  const compiled = fs.existsSync(compiledDir)
+    ? fs
+        .readdirSync(compiledDir)
+        .map((item) => path.join(compiledDir, item, "bin", "opencode"))
+        .find(canExec)
+    : undefined;
+  if (compiled) {
+    return {
+      cmd: compiled,
+      args,
+      mode: "compiled",
+    };
+  }
+
+  const sourceEntry = path.join(sourceDir, "packages", "opencode", "src", "index.ts");
+  const bun = canExec(path.join(binDir, "bun"))
+    ? path.join(binDir, "bun")
+    : findOnPath("bun", envPath);
+  if (bun && fs.existsSync(sourceEntry)) {
+    return {
+      cmd: bun,
+      args: ["run", "--cwd", path.join(sourceDir, "packages", "opencode"), "--conditions=browser", "src/index.ts", ...args],
+      mode: "source",
+    };
+  }
+
   const opencode = canExec(path.join(binDir, "opencode"))
     ? path.join(binDir, "opencode")
     : findOnPath("opencode", envPath);
@@ -56,9 +84,6 @@ function resolveOpencodeLaunch(opts) {
     };
   }
 
-  const bun = canExec(path.join(binDir, "bun"))
-    ? path.join(binDir, "bun")
-    : findOnPath("bun", envPath);
   if (bun) {
     return {
       cmd: bun,
@@ -68,7 +93,7 @@ function resolveOpencodeLaunch(opts) {
   }
 
   return {
-    error: `No OpenCode launcher found. Checked ${path.join(binDir, "opencode")}, ${path.join(binDir, "bunx")}, ${path.join(binDir, "bun")} and PATH=${envPath || "<empty>"}`,
+    error: `No OpenCode launcher found. Checked compiled dist in ${compiledDir}, source entry ${sourceEntry}, ${path.join(binDir, "opencode")}, ${path.join(binDir, "bunx")}, ${path.join(binDir, "bun")} and PATH=${envPath || "<empty>"}`,
   };
 }
 
