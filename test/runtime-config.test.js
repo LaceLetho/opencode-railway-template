@@ -21,11 +21,21 @@ const run = () => {
 
   assert.deepEqual(
     ensurePluginEntries(["oh-my-openagent@beta"], true),
-    ["oh-my-opencode@latest", "@laceletho/plugin-openclaw"],
+    ["oh-my-openagent@beta", "@laceletho/plugin-openclaw"],
   );
 
   assert.deepEqual(
     ensurePluginEntries(["@laceletho/plugin-openclaw"], false),
+    ["@laceletho/plugin-openclaw"],
+  );
+
+  assert.deepEqual(
+    ensurePluginEntries(["oh-my-opencode@1.2.3", "@laceletho/plugin-openclaw"], true),
+    ["oh-my-opencode@1.2.3", "@laceletho/plugin-openclaw"],
+  );
+
+  assert.deepEqual(
+    ensurePluginEntries(["oh-my-opencode@latest", "@laceletho/plugin-openclaw"], false),
     ["@laceletho/plugin-openclaw"],
   );
 
@@ -80,13 +90,28 @@ const run = () => {
   });
 
   assert.deepEqual(JSON.parse(fs.readFileSync(opencodeConfigPath, "utf8")), {
-    plugin: ["oh-my-opencode@latest", "@laceletho/plugin-openclaw"],
+    plugin: ["oh-my-openagent@beta", "@laceletho/plugin-openclaw"],
   });
   assert.deepEqual(JSON.parse(fs.readFileSync(omoConfigPath, "utf8")), {
     agents: {
       sisyphus: { model: "kimi-for-coding/k2p5" },
       oracle: { model: "openai/gpt-5.4", variant: "medium" },
     },
+  });
+
+  writeJson(opencodeConfigPath, {
+    plugin: ["oh-my-opencode@1.2.3", "@laceletho/plugin-openclaw"],
+  });
+
+  ensureRuntimeConfigs({
+    opencodeConfigPath,
+    omoConfigPath,
+    omoTemplatePath,
+    enableOhMyOpencode: false,
+  });
+
+  assert.deepEqual(JSON.parse(fs.readFileSync(opencodeConfigPath, "utf8")), {
+    plugin: ["@laceletho/plugin-openclaw"],
   });
 
   fs.rmSync(dir, { recursive: true, force: true });

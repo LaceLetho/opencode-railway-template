@@ -34,11 +34,35 @@ const isOhMyOpencodePlugin = (value) =>
   );
 
 const ensurePluginEntries = (plugins, enableOhMyOpencode) => {
-  const next = Array.isArray(plugins)
+  const current = Array.isArray(plugins)
     ? plugins.filter((value) => typeof value === "string" && value.trim())
     : [];
 
-  if (!next.includes(OPENCLAW_PLUGIN)) {
+  let hasOpenclaw = false;
+  let hasOhMyOpencode = false;
+  const next = [];
+
+  for (const value of current) {
+    if (value === OPENCLAW_PLUGIN) {
+      if (!hasOpenclaw) {
+        next.push(value);
+        hasOpenclaw = true;
+      }
+      continue;
+    }
+
+    if (isOhMyOpencodePlugin(value)) {
+      if (enableOhMyOpencode && !hasOhMyOpencode) {
+        next.push(value);
+        hasOhMyOpencode = true;
+      }
+      continue;
+    }
+
+    next.push(value);
+  }
+
+  if (!hasOpenclaw) {
     next.push(OPENCLAW_PLUGIN);
   }
 
@@ -46,13 +70,10 @@ const ensurePluginEntries = (plugins, enableOhMyOpencode) => {
     return next;
   }
 
-  const index = next.findIndex(isOhMyOpencodePlugin);
-  if (index === -1) {
+  if (!hasOhMyOpencode) {
     next.push(OMO_PLUGIN);
-    return next;
   }
 
-  next[index] = OMO_PLUGIN;
   return next;
 };
 
