@@ -32,6 +32,7 @@ RUN ref="${OPENCODE_REF}" \
   && cd "${OPENCODE_SOURCE_DIR}" \
   && git checkout "${ref}" \
   && if [ -n "${version}" ]; then OPENCODE_VERSION="${version}" OPENCODE_CHANNEL="${channel}" bun install; else bun install; fi \
+  && bun run --cwd packages/app build \
   && if [ -n "${version}" ]; then OPENCODE_VERSION="${version}" OPENCODE_CHANNEL="${channel}" bun run --cwd packages/opencode build --single; else bun run --cwd packages/opencode build --single; fi
 
 WORKDIR /app

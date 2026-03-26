@@ -80,12 +80,13 @@ Mount a Railway volume at `/data` — this persists workspace and state data acr
 
 ## Architecture
 
-This template uses a Node.js proxy wrapper to support browser sessions and CLI authentication:
+This template uses a Node.js proxy wrapper to support browser sessions, CLI authentication, and self-hosted web assets built from the same OpenCode ref:
 
 ```
 Internet → Node.js Proxy (PORT 8080)
               ↓ (Session cookie or HTTP Basic Auth)
-         ├─→ Internal OpenCode (PORT 18080)  ─→ /session/*, /global/*, /agents, /tools, /events, Web UI
+         ├─→ Local web assets from packages/app/dist
+         ├─→ Internal OpenCode (PORT 18080)  ─→ /session/*, /global/*, /agents, /tools, /events, API
          └─→ OpenClaw Plugin (PORT 9090)     ─→ /register
 ```
 
@@ -103,10 +104,11 @@ OpenCode's built-in web server is exposed only on localhost inside the container
 
 1. Issues secure browser session cookies after login
 2. Still accepts HTTP Basic Auth for CLI and automation
-3. Properly handles WebSocket upgrades for browser terminals
-4. Maintains SSE streaming for real-time AI responses
-5. Exposes PWA assets without auth so browser install flows keep working
-6. Relaxes upstream CSP enough to allow Cloudflare Insights and the OpenCode changelog fetch
+3. Serves the web frontend built from the same OpenCode ref as the backend
+4. Properly handles WebSocket upgrades for browser terminals
+5. Maintains SSE streaming for real-time AI responses
+6. Exposes PWA assets without auth so browser install flows keep working
+7. Relaxes upstream CSP enough to allow Cloudflare Insights and the OpenCode changelog fetch
 
 ## Memory Monitor
 
@@ -279,4 +281,3 @@ MIT — see LICENSE for details.
 - [OpenCode](https://github.com/sst/opencode) — The core AI coding agent
 - [opencode-mcp](https://github.com/LaceLetho/opencode-mcp) — MCP server for Claude/Cursor integration
 - [openclaw-opencode-cli](https://github.com/LaceLetho/openclaw-opencode-cli) — CLI bridge for task dispatch
-

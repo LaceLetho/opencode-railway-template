@@ -7,6 +7,7 @@
 const http = require("http");
 const { spawn } = require("child_process");
 const fs = require("fs");
+const path = require("path");
 const crypto = require("crypto");
 const { proxyWebSocketUpgrade } = require("./ws-proxy");
 const { resolveOpencodeLaunch } = require("./launch");
@@ -23,6 +24,7 @@ const SESSION_COOKIE = "opencode_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 const logLevel = process.env.LOG_LEVEL?.toUpperCase() || "WARN";
 const debugTraffic = process.env.DEBUG_OPENCODE_TRAFFIC === "true";
+const WEB_ROOT = process.env.OPENCODE_WEB_DIST_DIR || "/opt/opencode/packages/app/dist";
 
 if (!PASSWORD) {
   console.error("ERROR: OPENCODE_SERVER_PASSWORD is required");
@@ -537,6 +539,8 @@ const PUBLIC_PATHS = new Set([
   "/favicon-96x96-v3.png",
   "/apple-touch-icon-v3.png",
   "/site.webmanifest",
+  "/social-share.png",
+  "/oc-theme-preload.js",
   "/web-app-manifest-192x192.png",
   "/web-app-manifest-512x512.png",
 ]);
@@ -570,6 +574,57 @@ function isOpencodeApiEndpoint(url) {
 
 function isPublicPath(pathname) {
   return PUBLIC_PATHS.has(pathname);
+}
+
+function staticPath(pathname) {
+  const rel = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+  const file = path.resolve(WEB_ROOT, rel);
+  if (file === WEB_ROOT) return path.join(WEB_ROOT, "index.html");
+  if (!file.startsWith(WEB_ROOT + path.sep) && file !== path.join(WEB_ROOT, "index.html")) return;
+  return file;
+}
+
+function mimeType(file) {
+  const ext = path.extname(file).toLowerCase();
+  if (ext === ".html") return "text/html; charset=utf-8";
+  if (ext === ".js") return "text/javascript; charset=utf-8";
+  if (ext === ".css") return "text/css; charset=utf-8";
+  if (ext === ".json" || ext === ".webmanifest") return "application/manifest+json; charset=utf-8";
+  if (ext === ".svg") return "image/svg+xml";
+  if (ext === ".png") return "image/png";
+  if (ext === ".ico") return "image/x-icon";
+  if (ext === ".woff2") return "font/woff2";
+  if (ext === ".woff") return "font/woff";
+  if (ext === ".ttf") return "font/ttf";
+  return "application/octet-stream";
+}
+
+function cacheControl(file) {
+  if (file.endsWith("index.html")) return "no-store";
+  return "public, max-age=31536000, immutable";
+}
+
+function sendStatic(res, file, reqMethod = "GET") {
+  if (!file || !fs.existsSync(file) || !fs.statSync(file).isFile()) return false;
+  const body = fs.readFileSync(file);
+  res.writeHead(200, {
+    "Content-Type": mimeType(file),
+    "Content-Length": body.length,
+    "Cache-Control": cacheControl(file),
+  });
+  if (reqMethod === "HEAD") {
+    res.end();
+    return true;
+  }
+  res.end(body);
+  return true;
+}
+
+function handleStatic(req, res, pathname) {
+  if (pathname === "/" || isPublicPath(pathname) || pathname.startsWith("/assets/")) {
+    return sendStatic(res, staticPath(pathname), req.method);
+  }
+  return false;
 }
 
 function normalizeCspValue(value) {
@@ -701,8 +756,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (isPublicReq) {
-    proxyRequest(req, res, INTERNAL_PORT);
-    return;
+    if (handleStatic(req, res, pathname)) return;
   }
 
   if (isHtmlNavigation(req, pathname, isApiReq, isPluginReq) && !hasValidRouteDirectory(pathname)) {
@@ -736,6 +790,9 @@ const server = http.createServer(async (req, res) => {
       } catch (err) {
         console.error(`[wrapper] Failed to auto-create session for ${directory}: ${err.message}`);
       }
+    }
+    if (handleStatic(req, res, "/")) {
+      return;
     }
   }
 
