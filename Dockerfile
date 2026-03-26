@@ -1,7 +1,7 @@
 FROM node:22-bookworm
 
 ENV NODE_ENV=production
-ARG OPENCODE_VERSION=1.3.2
+ARG OPENCODE_VERSION=1.3.0
 ARG OPENCODE_REF=
 
 RUN apt-get update \
