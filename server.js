@@ -576,6 +576,13 @@ function isPublicPath(pathname) {
   return PUBLIC_PATHS.has(pathname);
 }
 
+function isStaticRoute(pathname) {
+  if (pathname === "/") return true;
+  if (isPublicPath(pathname)) return true;
+  if (pathname.startsWith("/assets/")) return true;
+  return false;
+}
+
 function staticPath(pathname) {
   const rel = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
   const file = path.resolve(WEB_ROOT, rel);
@@ -621,10 +628,23 @@ function sendStatic(res, file, reqMethod = "GET") {
 }
 
 function handleStatic(req, res, pathname) {
-  if (pathname === "/" || isPublicPath(pathname) || pathname.startsWith("/assets/")) {
+  if (isStaticRoute(pathname)) {
     return sendStatic(res, staticPath(pathname), req.method);
   }
   return false;
+}
+
+function sendMissingStatic(res, pathname) {
+  const status = pathname === "/" ? 500 : 404;
+  const body =
+    pathname === "/"
+      ? `Missing local web app entrypoint: ${staticPath("/")}\n`
+      : `Static asset not found: ${pathname}\n`;
+  res.writeHead(status, {
+    "Content-Type": "text/plain; charset=utf-8",
+    "Cache-Control": "no-store",
+  });
+  res.end(body);
 }
 
 function normalizeCspValue(value) {
@@ -755,8 +775,10 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (isPublicReq) {
-    if (handleStatic(req, res, pathname)) return;
+  if (handleStatic(req, res, pathname)) return;
+  if (isStaticRoute(pathname)) {
+    sendMissingStatic(res, pathname);
+    return;
   }
 
   if (isHtmlNavigation(req, pathname, isApiReq, isPluginReq) && !hasValidRouteDirectory(pathname)) {
@@ -794,6 +816,8 @@ const server = http.createServer(async (req, res) => {
     if (handleStatic(req, res, "/")) {
       return;
     }
+    sendMissingStatic(res, "/");
+    return;
   }
 
   if (process.env.DEBUG_PROXY) {
