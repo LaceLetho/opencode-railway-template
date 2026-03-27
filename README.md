@@ -32,6 +32,7 @@ Optional variables:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
+| `SOURCE_MODE` | `true` builds pinned frontend + backend from source, `false` installs latest published backend and uses upstream hosted web app | `true` |
 | `OPENCODE_REF` | OpenCode git ref to build from, for example `v1.3.0` | `v1.3.0` |
 | `OPENCODE_MODEL` | Default model to use | - |
 | `LOG_LEVEL` | Log verbosity (DEBUG, INFO, WARN, ERROR) | WARN |
@@ -82,12 +83,13 @@ Mount a Railway volume at `/data` — this persists workspace and state data acr
 
 ## Architecture
 
-This template uses a Node.js proxy wrapper to support browser sessions, CLI authentication, and self-hosted web assets built from the same OpenCode ref:
+This template uses a Node.js proxy wrapper to support browser sessions, CLI authentication, and either self-hosted or upstream web assets:
 
 ```
 Internet → Node.js Proxy (PORT 8080)
               ↓ (Session cookie or HTTP Basic Auth)
-         ├─→ Local web assets from packages/app/dist
+         ├─→ Local web assets from packages/app/dist (`SOURCE_MODE=true`)
+         ├─→ Upstream hosted web app via internal `opencode serve` (`SOURCE_MODE=false`)
          ├─→ Internal OpenCode (PORT 18080)  ─→ /session/*, /global/*, /agents, /tools, /events, API
          └─→ OpenClaw Plugin (PORT 9090)     ─→ /register
 ```
@@ -96,7 +98,7 @@ Internet → Node.js Proxy (PORT 8080)
 
 - **`server.js`** — Node.js proxy with cookie session login, Basic Auth support, and streaming proxying
 - **`runtime-config.js`** — Ensures plugin entries exist in `/data/.config/opencode/opencode.json` and seeds `oh-my-opencode` config
-- **`Dockerfile`** — Clones the requested OpenCode ref, builds `packages/app`, and builds the standalone `packages/opencode` binary used at runtime
+- **`Dockerfile`** — Either clones `OPENCODE_REF` and builds `packages/app` + `packages/opencode`, or installs the latest published `opencode-ai` package when `SOURCE_MODE=false`
 - **`start.sh`** — Entry point that starts the proxy
 - **`railway.toml`** — Railway configuration
 - **`monitor.sh`** — Memory monitor with auto-restart (see below)
@@ -124,15 +126,18 @@ OpenCode's built-in web server is exposed only on localhost inside the container
 
 1. Issues secure browser session cookies after login
 2. Still accepts HTTP Basic Auth for CLI and automation
-3. Serves the web frontend built from the same OpenCode ref as the backend
-4. Properly handles WebSocket upgrades for browser terminals
-5. Maintains SSE streaming for real-time AI responses
-6. Exposes PWA assets without auth so browser install flows keep working
-7. Relaxes upstream CSP enough to allow Cloudflare Insights and the OpenCode changelog fetch
+3. In `SOURCE_MODE=true`, serves the web frontend built from the same OpenCode ref as the backend
+4. In `SOURCE_MODE=false`, proxies browser routes through the internal `opencode serve` fallback to the official hosted frontend
+5. Properly handles WebSocket upgrades for browser terminals
+6. Maintains SSE streaming for real-time AI responses
+7. Exposes PWA assets without auth so browser install flows keep working in self-hosted mode
+8. Relaxes upstream CSP enough to allow Cloudflare Insights and the OpenCode changelog fetch
 
-## Version Pinning
+## Deployment Modes
 
-This template is designed to keep the browser frontend and the OpenCode backend on the same ref.
+### `SOURCE_MODE=true` (default)
+
+This keeps the browser frontend and backend on the same ref.
 
 Important details:
 
@@ -159,9 +164,20 @@ When `OPENCODE_REF` is a semver tag such as `v1.3.0`, the Docker build also inje
 
 This avoids detached-HEAD preview version strings like `0.0.0--...` during the OpenCode build.
 
+### `SOURCE_MODE=false`
+
+This switches the template back to upstream delivery behavior:
+
+- the Docker image installs the latest published `opencode-ai` package
+- runtime launches `opencode serve` from that installed package
+- browser routes are proxied to the internal OpenCode server instead of serving local `packages/app/dist`
+- unmatched frontend routes then fall through to the official hosted web app from upstream OpenCode
+
+Use this mode when you want the smallest deployment surface and you are comfortable following the latest published backend plus hosted frontend behavior.
+
 ### Deploy-time expectations
 
-After a successful deployment:
+After a successful deployment with `SOURCE_MODE=true`:
 
 - `GET /global/health` should report the backend version you pinned
 - the browser UI version shown in Settings should match the same pinned version
@@ -174,7 +190,7 @@ Use Railway SSH after deployment:
 railway ssh 'curl -s http://127.0.0.1:18080/global/health'
 ```
 
-Expected result for `OPENCODE_REF=v1.3.0`:
+Expected result for `SOURCE_MODE=true` and `OPENCODE_REF=v1.3.0`:
 
 ```json
 {"healthy":true,"version":"1.3.0"}
@@ -187,6 +203,8 @@ railway ssh 'curl -I -s http://127.0.0.1:8080/assets/index-*.js'
 ```
 
 The response should be JavaScript, not `text/html`.
+
+For `SOURCE_MODE=false`, the container no longer contains local `packages/app/dist`, so frontend requests should be handled by the internal `opencode serve` process and its upstream hosted web app fallback instead.
 
 ## Memory Monitor
 

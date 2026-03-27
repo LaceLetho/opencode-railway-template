@@ -12,6 +12,7 @@ const crypto = require("crypto");
 const { proxyWebSocketUpgrade } = require("./ws-proxy");
 const { resolveOpencodeLaunch } = require("./launch");
 const { ensureRuntimeConfigs } = require("./runtime-config");
+const { isSourceMode } = require("./source-mode");
 
 const PORT = process.env.PORT || "8080";
 const INTERNAL_PORT = process.env.INTERNAL_PORT || "18080";
@@ -26,6 +27,7 @@ const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 const logLevel = process.env.LOG_LEVEL?.toUpperCase() || "WARN";
 const debugTraffic = process.env.DEBUG_OPENCODE_TRAFFIC === "true";
 const WEB_ROOT = process.env.OPENCODE_WEB_DIST_DIR || "/opt/opencode/packages/app/dist";
+const sourceMode = isSourceMode(process.env);
 const enableOhMyOpencode = process.env.ENABLE_OH_MY_OPENCODE !== "false";
 const ACTIVITY_FILE = process.env.OPENCODE_ACTIVITY_FILE || "/tmp/opencode_monitor_state_v5/last_activity";
 
@@ -69,6 +71,7 @@ console.log(`OpenCode version: ${process.env.OPENCODE_VERSION || "unknown"}`);
 console.log(`Internal port: ${INTERNAL_PORT}`);
 console.log(`Plugin port: ${PLUGIN_PORT}`);
 console.log(`Workspace: ${WORKSPACE}`);
+console.log(`Source mode: ${sourceMode ? "true (build from source)" : "false (published opencode-ai)"}`);
 console.log(`Log level: ${logLevel} (set LOG_LEVEL env var to change: DEBUG, INFO, WARN, ERROR)`);
 console.log(`Oh My OpenCode: ${enableOhMyOpencode ? "enabled" : "disabled"}`);
 if (debugTraffic) {
@@ -560,6 +563,7 @@ function isPublicPath(pathname) {
 }
 
 function isStaticRoute(pathname) {
+  if (!sourceMode) return false;
   if (pathname === "/") return true;
   if (isPublicPath(pathname)) return true;
   if (pathname.startsWith("/assets/")) return true;
