@@ -123,7 +123,14 @@ trigger_railway_redeploy() {
 
 # ==================== Get OpenCode Process ID ====================
 get_opencode_pid() {
-    pgrep -f "/\.opencode web" | head -1
+    local pid
+
+    # Both SOURCE_MODE variants launch OpenCode via `opencode serve`.
+    pid=$(ps -eo pid=,args= | awk '/(^|[[:space:]\/])opencode([[:space:]]|$)/ && / serve([[:space:]]|$)/ { print $1; exit }')
+    if [ -n "$pid" ]; then
+        echo "$pid"
+        return
+    fi
 }
 
 # ==================== Get Memory Usage ====================
