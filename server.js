@@ -27,6 +27,7 @@ const logLevel = process.env.LOG_LEVEL?.toUpperCase() || "WARN";
 const debugTraffic = process.env.DEBUG_OPENCODE_TRAFFIC === "true";
 const WEB_ROOT = process.env.OPENCODE_WEB_DIST_DIR || "/opt/opencode/packages/app/dist";
 const enableOhMyOpencode = process.env.ENABLE_OH_MY_OPENCODE !== "false";
+const ACTIVITY_FILE = process.env.OPENCODE_ACTIVITY_FILE || "/tmp/opencode_monitor_state_v5/last_activity";
 
 if (!PASSWORD) {
   console.error("ERROR: OPENCODE_SERVER_PASSWORD is required");
@@ -419,6 +420,15 @@ function pathnameOf(url) {
   return url.split("?")[0].split("#")[0];
 }
 
+function touchActivity() {
+  try {
+    fs.mkdirSync(path.dirname(ACTIVITY_FILE), { recursive: true });
+    fs.writeFileSync(ACTIVITY_FILE, String(Math.floor(Date.now() / 1000)));
+  } catch (err) {
+    console.error(`[wrapper] Failed to update activity file: ${err.message}`);
+  }
+}
+
 function isDirectorySessionRoute(pathname) {
   const parts = pathname.split("/").filter(Boolean);
   if (parts.length < 2) return false;
@@ -554,6 +564,18 @@ function isStaticRoute(pathname) {
   if (isPublicPath(pathname)) return true;
   if (pathname.startsWith("/assets/")) return true;
   return false;
+}
+
+function shouldTrackActivity(req, pathname, isApiReq, isPluginReq) {
+  if (req.method === "OPTIONS") return false;
+  if (isPluginReq) return false;
+  if (pathname === "/login" || pathname === "/logout") return false;
+  if (pathname === "/global/health") return false;
+  if (pathname === "/global/event" || pathname === "/events") return false;
+  if (pathname === "/session/status") return false;
+  if (isStaticRoute(pathname)) return false;
+  if (isApiReq) return true;
+  return isHtmlNavigation(req, pathname, isApiReq, isPluginReq);
 }
 
 function staticPath(pathname) {
@@ -769,6 +791,10 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (shouldTrackActivity(req, pathname, isApiReq, isPluginReq)) {
+    touchActivity();
+  }
+
   if (isHtmlNavigation(req, pathname, isApiReq, isPluginReq)) {
     const route = routeSessionParts(pathname);
     const directory = decodeRouteDirectory(pathname);
@@ -808,6 +834,8 @@ server.on('upgrade', (req, socket, head) => {
     socket.end();
     return;
   }
+
+  touchActivity();
 
   proxyWebSocketUpgrade({
     req,
