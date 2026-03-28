@@ -5,6 +5,7 @@
  */
 
 const http = require("http");
+const https = require("https");
 const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
@@ -31,6 +32,7 @@ const sourceMode = isSourceMode(process.env);
 const enableOhMyOpencode = process.env.ENABLE_OH_MY_OPENCODE !== "false";
 const ACTIVITY_FILE = process.env.OPENCODE_ACTIVITY_FILE || "/tmp/opencode_monitor_state_v5/last_activity";
 const SESSION_STATUS_POLL_MS = Number(process.env.OPENCODE_SESSION_STATUS_POLL_MS || "60000");
+const sleepDebug = process.env.LOG_SLEEP_BLOCKERS !== "false";
 
 if (!PASSWORD) {
   console.error("ERROR: OPENCODE_SERVER_PASSWORD is required");
@@ -78,6 +80,171 @@ console.log(`Oh My OpenCode: ${enableOhMyOpencode ? "enabled" : "disabled"}`);
 if (debugTraffic) {
   console.log("OpenCode traffic debug logging enabled");
 }
+if (sleepDebug) {
+  console.log("Sleep blocker logging enabled");
+}
+
+function compactLog(value, max = 160) {
+  if (value === undefined || value === null || value === "") return "-";
+  const text = String(value).replace(/\s+/g, " ").trim();
+  if (!text) return "-";
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 3)}...`;
+}
+
+function forwardedHeaderValue(value) {
+  if (!value) return "";
+  if (Array.isArray(value)) return value[0] || "";
+  return value;
+}
+
+function requestIp(req) {
+  const direct = forwardedHeaderValue(req.headers["cf-connecting-ip"]);
+  if (direct) return direct;
+  const forwarded = forwardedHeaderValue(req.headers["x-forwarded-for"]);
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return req.socket?.remoteAddress || "-";
+}
+
+function requestAuth(req) {
+  if (req.headers.authorization?.startsWith("Basic ")) return "basic";
+  if (req.headers.cookie?.includes(`${SESSION_COOKIE}=`)) return "session";
+  return "none";
+}
+
+function shouldLogSleepInbound(req, pathname, isApiReq, isPluginReq) {
+  if (pathname === "/global/health") return true;
+  if (pathname === "/session/status") return true;
+  if (pathname === "/global/event" || pathname === "/events") return true;
+  if (pathname === "/register") return true;
+  if (pathname === "/" || pathname === "/login") return req.method === "GET" || req.method === "HEAD";
+  return isHtmlNavigation(req, pathname, isApiReq, isPluginReq);
+}
+
+function logSleepInbound(req, pathname, note = "") {
+  if (!sleepDebug) return;
+  const host = compactLog(forwardedHeaderValue(req.headers.host), 80);
+  const ip = compactLog(requestIp(req), 80);
+  const ua = compactLog(forwardedHeaderValue(req.headers["user-agent"]), 120);
+  const auth = requestAuth(req);
+  const suffix = note ? ` note=${note}` : "";
+  console.log(`[sleep-debug] inbound method=${req.method} path=${pathname} host=${host} ip=${ip} auth=${auth} ua="${ua}"${suffix}`);
+}
+
+function normalizePort(value) {
+  if (value === undefined || value === null || value === "") return "";
+  return String(value);
+}
+
+function splitHostPort(host) {
+  if (!host) return { host: "", port: "" };
+  if (host.startsWith("[")) {
+    const end = host.indexOf("]");
+    if (end === -1) return { host, port: "" };
+    const name = host.slice(0, end + 1);
+    const port = host.slice(end + 2);
+    return { host: name, port };
+  }
+  const idx = host.lastIndexOf(":");
+  if (idx === -1) return { host, port: "" };
+  if (host.indexOf(":") !== idx) return { host, port: "" };
+  return {
+    host: host.slice(0, idx),
+    port: host.slice(idx + 1),
+  };
+}
+
+function isLoopbackHost(host) {
+  if (!host) return true;
+  const value = host.replace(/^\[/, "").replace(/\]$/, "").toLowerCase();
+  if (value === "localhost" || value === "::1") return true;
+  if (value === "0.0.0.0") return true;
+  return value.startsWith("127.");
+}
+
+function shouldLogOutbound(target) {
+  if (!sleepDebug || !target) return false;
+  if (target.socketPath) return false;
+  return !isLoopbackHost(target.host);
+}
+
+function logSleepOutbound(kind, target) {
+  if (!shouldLogOutbound(target)) return;
+  const protocol = target.protocol || kind;
+  const method = target.method || "GET";
+  const host = compactLog(target.host, 80);
+  const port = target.port ? `:${target.port}` : "";
+  const route = compactLog(target.path || "/", 160);
+  console.log(`[sleep-debug] outbound kind=${kind} method=${method} target=${protocol}//${host}${port}${route}`);
+}
+
+function outboundTarget(args, fallbackProtocol) {
+  const first = args[0];
+  const second = typeof args[1] === "function" ? undefined : args[1];
+  if (!first) return;
+
+  if (typeof first === "string" || first instanceof URL) {
+    const url = first instanceof URL ? first : new URL(first);
+    const opts = second && typeof second === "object" ? second : {};
+    const hostValue = opts.hostname || opts.host || url.hostname || url.host;
+    const split = splitHostPort(String(hostValue || ""));
+    return {
+      protocol: url.protocol || fallbackProtocol,
+      host: split.host || url.hostname || url.host,
+      port: normalizePort(opts.port || split.port || url.port),
+      path: opts.path || `${url.pathname}${url.search}`,
+      method: opts.method || "GET",
+      socketPath: opts.socketPath,
+    };
+  }
+
+  if (typeof first !== "object") return;
+
+  const split = splitHostPort(String(first.hostname || first.host || ""));
+  return {
+    protocol: first.protocol || fallbackProtocol,
+    host: split.host || first.hostname || first.host,
+    port: normalizePort(first.port || split.port),
+    path: first.path || first.pathname || "/",
+    method: first.method || "GET",
+    socketPath: first.socketPath,
+  };
+}
+
+function patchOutboundRequests(mod, kind, fallbackProtocol) {
+  const request = mod.request.bind(mod);
+  mod.request = (...args) => {
+    logSleepOutbound(kind, outboundTarget(args, fallbackProtocol));
+    return request(...args);
+  };
+
+  mod.get = (...args) => {
+    const req = mod.request(...args);
+    req.end();
+    return req;
+  };
+}
+
+const originalFetch = globalThis.fetch?.bind(globalThis);
+if (originalFetch) {
+  globalThis.fetch = async (input, init) => {
+    const source = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+    if (typeof source === "string" && !source.startsWith("/")) {
+      const url = new URL(source);
+      logSleepOutbound("fetch", {
+        protocol: url.protocol,
+        host: url.hostname,
+        port: normalizePort(url.port),
+        path: `${url.pathname}${url.search}`,
+        method: init?.method || (input instanceof Request ? input.method : "GET"),
+      });
+    }
+    return await originalFetch(input, init);
+  };
+}
+
+patchOutboundRequests(http, "http", "http:");
+patchOutboundRequests(https, "https", "https:");
 
 const launch = resolveOpencodeLaunch({
   env: process.env,
@@ -794,6 +961,10 @@ const server = http.createServer(async (req, res) => {
   const isPluginReq = isPluginEndpoint(req.url);
   const isPublicReq = isPublicPath(pathname);
 
+  if (shouldLogSleepInbound(req, pathname, isApiReq, isPluginReq)) {
+    logSleepInbound(req, pathname);
+  }
+
   if (pathname === "/login" && (req.method === "GET" || req.method === "HEAD")) {
     handleLoginPage(res);
     return;
@@ -869,6 +1040,8 @@ const server = http.createServer(async (req, res) => {
 
 // WebSocket upgrade handling
 server.on('upgrade', (req, socket, head) => {
+  logSleepInbound(req, pathnameOf(req.url), "upgrade");
+
   if (!isAuthenticated(req)) {
     socket.write(`HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm="${AUTH_REALM}"\r\nConnection: close\r\n\r\n`);
     socket.end();
@@ -890,7 +1063,7 @@ server.on('upgrade', (req, socket, head) => {
 
 // Start monitor script
 function startMonitor() {
-  const enableMonitor = process.env.ENABLE_MONITOR !== "false";
+  const enableMonitor = process.env.ENABLE_MONITOR === "true";
   if (!enableMonitor) {
     return;
   }

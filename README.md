@@ -1,6 +1,6 @@
 # OpenCode Railway Template
 
-One-click Railway deploy for [OpenCode](https://opencode.ai) — an always-on autonomous AI coding agent with web interface.
+One-click Railway deploy for [OpenCode](https://opencode.ai) with browser UI, Railway Serverless enabled by default, and optional memory monitoring.
 
 ## Deploy to Railway
 
@@ -13,6 +13,8 @@ One-click Railway deploy for [OpenCode](https://opencode.ai) — an always-on au
 3. Set required environment variables (see below)
 4. Open your Railway deployment URL
 5. Login with username `opencode` and your password
+
+This template ships with Railway Serverless enabled by default in `railway.toml`.
 
 ## Required environment variables
 
@@ -37,9 +39,10 @@ Optional variables:
 | `OPENCODE_MODEL` | Default model to use | - |
 | `LOG_LEVEL` | Log verbosity (DEBUG, INFO, WARN, ERROR) | WARN |
 | `DEBUG_OPENCODE_TRAFFIC` | Print suppressed OpenCode health/PTy traffic logs for debugging | false |
+| `LOG_SLEEP_BLOCKERS` | Log inbound probes and non-loopback outbound requests that can keep Serverless awake | true |
 | `OPENCLAW_PLUGIN_PORT` | Port for OpenClaw plugin HTTP server | 9090 |
 | `ENABLE_OH_MY_OPENCODE` | Register and bootstrap the `oh-my-opencode` plugin | true |
-| `ENABLE_MONITOR` | Enable OpenCode memory monitor auto-restart | true |
+| `ENABLE_MONITOR` | Enable OpenCode memory monitor auto-restart | false |
 | `AUTH_REALM` | HTTP Basic Auth realm (for password manager compatibility) | opencode.tradao.xyz |
 | `OPENCODE_SESSION_SECRET` | Cookie signing secret for browser sessions | `OPENCODE_SERVER_PASSWORD` |
 
@@ -101,7 +104,7 @@ Internet → Node.js Proxy (PORT 8080)
 - **`Dockerfile`** — Either clones `OPENCODE_REF` and builds `packages/app` + `packages/opencode`, or installs the latest published `opencode-ai` package when `SOURCE_MODE=false`
 - **`start.sh`** — Entry point that starts the proxy
 - **`railway.toml`** — Railway configuration
-- **`monitor.sh`** — Memory monitor with auto-restart (see below)
+- **`monitor.sh`** — Optional memory monitor with auto-restart (see below)
 
 ## Oh My OpenCode
 
@@ -208,7 +211,7 @@ For `SOURCE_MODE=false`, the container no longer contains local `packages/app/di
 
 ## Memory Monitor
 
-This template includes an embedded memory monitor (`monitor.sh`) that automatically restarts OpenCode when idle to prevent memory leaks.
+This template includes an embedded memory monitor (`monitor.sh`) that can automatically restart OpenCode when idle to prevent memory leaks.
 
 ### Why it's needed
 
@@ -231,9 +234,16 @@ OpenCode spawns MCP/LSP processes per session that accumulate over time, causing
 | `GENERATION_GRACE_SECONDS` | 60 | Wait time after AI generation |
 | `RAILWAY_API_TOKEN` | - | Required for auto-restart via API |
 
-### Disabling the monitor
+The monitor is disabled by default. Enable it with `ENABLE_MONITOR=true` when you want this behavior.
 
-Set `ENABLE_MONITOR=false` in Railway environment variables. Defaults to `true`.
+### Sleep blocker logs
+
+`server.js` now logs two categories by default to help diagnose why a Serverless deployment stays active:
+
+- `"[sleep-debug] inbound ..."` for incoming requests that commonly wake or probe the service, including `/global/health`, `/session/status`, `/global/event`, `/events`, `/register`, `/`, browser navigations, and WebSocket upgrades
+- `"[sleep-debug] outbound ..."` for every non-loopback outbound request made by the wrapper process
+
+Set `LOG_SLEEP_BLOCKERS=false` if you need to silence these logs after debugging.
 
 ## API Access
 
