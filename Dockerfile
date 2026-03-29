@@ -33,7 +33,8 @@ RUN if [ "${SOURCE_MODE}" = "false" ]; then \
     && git checkout "${ref}" \
     && if [ -n "${version}" ]; then OPENCODE_VERSION="${version}" OPENCODE_CHANNEL="${channel}" bun install; else bun install; fi \
     && bun run --cwd packages/app build \
-    && if [ -n "${version}" ]; then OPENCODE_VERSION="${version}" OPENCODE_CHANNEL="${channel}" bun run --cwd packages/opencode build --single; else bun run --cwd packages/opencode build --single; fi; \
+    && if [ -n "${version}" ]; then OPENCODE_VERSION="${version}" OPENCODE_CHANNEL="${channel}" bun run --cwd packages/opencode build --single; else bun run --cwd packages/opencode build --single; fi \
+    && install -m 755 "$(find "${OPENCODE_SOURCE_DIR}/packages/opencode/dist" -type f -path "*/bin/opencode" | head -n 1)" /usr/local/bin/opencode; \
   fi
 
 WORKDIR /app

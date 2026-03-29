@@ -72,6 +72,8 @@ npm install -g opencode-ai
 opencode attach https://your-app.up.railway.app/ -p YOUR_PASSWORD
 ```
 
+If you SSH into the Railway container, `opencode` is also available as a shell command. In `SOURCE_MODE=true`, the image now promotes the compiled standalone binary to `/usr/local/bin/opencode` so `railway ssh` sessions behave the same as published-package installs.
+
 ## Volume
 
 Mount a Railway volume at `/data` — this persists workspace and state data across deployments.
