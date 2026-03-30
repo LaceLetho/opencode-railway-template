@@ -15,6 +15,9 @@
     "explore": {
       "model": "minimax-cn-coding-plan/MiniMax-M2.7"
     },
+    "librarian": {
+      "model": "minimax-cn-coding-plan/MiniMax-M2.7"
+    },
     "multimodal-looker": {
       "model": "openai/gpt-5.4",
       "variant": "medium"
