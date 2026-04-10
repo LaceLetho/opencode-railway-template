@@ -49,6 +49,8 @@ Deploy OpenCode on Railway with the pieces that matter in production: pinned fro
 | `OPENCODE_SESSION_SECRET` | `OPENCODE_SERVER_PASSWORD` | Signing secret for browser session cookies. Set this explicitly if you run multiple instances. |
 | `AUTH_REALM` | `opencode.tradao.xyz` | Basic Auth realm. Usually no need to change it. |
 | `ENABLE_OH_MY_OPENCODE` | `true` | Enable automatic injection of `oh-my-openagent@latest`. |
+| `ENABLE_OMO_DEFAULT_CONFIG` | `false` | When `true`, overwrite oh-my default config files from the bundled `oh-my-opencode.default.json`. |
+| `ENABLE_OPENCLAW_PLUGIN` | `false` | When `true`, inject `@laceletho/plugin-openclaw` into `/data/.config/opencode/opencode.json`. |
 | `ENABLE_OMO_REDEPLOY_REFRESH` | `true` | Refresh oh-my plugin cache when Railway deployment id changes. |
 | `ENABLE_MONITOR` | `false` | Enable the memory monitor and auto-restart logic. |
 | `LOG_LEVEL` | `WARN` | Wrapper log level. |
@@ -92,8 +94,9 @@ These solve different problems:
 
 ## Plugin Behavior
 
-- The template ensures `@laceletho/plugin-openclaw` and `oh-my-openagent@latest` exist in `/data/.config/opencode/opencode.json`.
-- Startup rebuilds the oh-my config from the bundled template.
+- The template injects `oh-my-openagent@latest` into `/data/.config/opencode/opencode.json` by default.
+- Set `ENABLE_OPENCLAW_PLUGIN=true` if you also want to inject `@laceletho/plugin-openclaw`.
+- Set `ENABLE_OMO_DEFAULT_CONFIG=true` if you want startup to rebuild the oh-my config from the bundled template.
 - A new Railway deployment id triggers cache cleanup and re-download of the latest oh-my plugin.
 
 Disable this behavior with:

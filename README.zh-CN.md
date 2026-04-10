@@ -49,6 +49,8 @@
 | `OPENCODE_SESSION_SECRET` | `OPENCODE_SERVER_PASSWORD` | 浏览器 session cookie 的签名密钥。多实例部署时建议显式设置。 |
 | `AUTH_REALM` | `opencode.tradao.xyz` | Basic Auth realm，通常无需修改。 |
 | `ENABLE_OH_MY_OPENCODE` | `true` | 是否自动注入 `oh-my-openagent@latest`。 |
+| `ENABLE_OMO_DEFAULT_CONFIG` | `false` | 为 `true` 时，启动时用仓库内置的 `oh-my-opencode.default.json` 覆盖 oh-my 默认配置文件。 |
+| `ENABLE_OPENCLAW_PLUGIN` | `false` | 为 `true` 时，向 `/data/.config/opencode/opencode.json` 注入 `@laceletho/plugin-openclaw`。 |
 | `ENABLE_OMO_REDEPLOY_REFRESH` | `true` | Railway deployment id 变化时是否刷新 oh-my 插件缓存。 |
 | `ENABLE_MONITOR` | `false` | 是否启用内存监控和自动重启。 |
 | `LOG_LEVEL` | `WARN` | Wrapper 日志级别。 |
@@ -92,8 +94,9 @@ opencode attach https://your-app.up.railway.app/ -p YOUR_PASSWORD
 
 ## 插件行为
 
-- 模板会确保 `@laceletho/plugin-openclaw` 和 `oh-my-openagent@latest` 存在于 `/data/.config/opencode/opencode.json`。
-- 每次启动都会根据仓库内置模板重建 oh-my 配置。
+- 模板默认会向 `/data/.config/opencode/opencode.json` 注入 `oh-my-openagent@latest`。
+- 如果你也想自动注入 `@laceletho/plugin-openclaw`，设置 `ENABLE_OPENCLAW_PLUGIN=true`。
+- 如果你想在启动时用仓库内置模板重建 oh-my 配置，设置 `ENABLE_OMO_DEFAULT_CONFIG=true`。
 - 检测到新的 Railway deployment id 时，会清理缓存并重新拉取最新版 oh-my 插件。
 
 如果你不想启用这套行为，可以设置：

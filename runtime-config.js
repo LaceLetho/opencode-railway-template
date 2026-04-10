@@ -34,7 +34,7 @@ const isOhMyOpencodePlugin = (value) =>
     value.startsWith(`${OMO_LEGACY_PLUGIN_NAME}@`)
   );
 
-const ensurePluginEntries = (plugins, enableOhMyOpencode) => {
+const ensurePluginEntries = (plugins, enableOhMyOpencode, enableOpenclawPlugin) => {
   const current = Array.isArray(plugins)
     ? plugins.filter((value) => typeof value === "string" && value.trim())
     : [];
@@ -45,7 +45,7 @@ const ensurePluginEntries = (plugins, enableOhMyOpencode) => {
 
   for (const value of current) {
     if (value === OPENCLAW_PLUGIN) {
-      if (!hasOpenclaw) {
+      if (enableOpenclawPlugin && !hasOpenclaw) {
         next.push(value);
         hasOpenclaw = true;
       }
@@ -63,7 +63,7 @@ const ensurePluginEntries = (plugins, enableOhMyOpencode) => {
     next.push(value);
   }
 
-  if (!hasOpenclaw) {
+  if (enableOpenclawPlugin && !hasOpenclaw) {
     next.push(OPENCLAW_PLUGIN);
   }
 
@@ -86,15 +86,21 @@ const ensureRuntimeConfigs = (opts = {}) => {
   const omoCanonicalConfigPath = opts.omoCanonicalConfigPath || DEFAULT_OMO_CANONICAL_CONFIG_PATH;
   const omoTemplatePath = opts.omoTemplatePath || DEFAULT_OMO_TEMPLATE_PATH;
   const enableOhMyOpencode = opts.enableOhMyOpencode !== false;
+  const enableOpenclawPlugin = opts.enableOpenclawPlugin === true;
+  const enableOmoDefaultConfig = opts.enableOmoDefaultConfig === true;
 
   const opencodeConfig = readJson(opencodeConfigPath, {});
   if (opencodeConfig.plugins !== undefined) {
     delete opencodeConfig.plugins;
   }
-  opencodeConfig.plugin = ensurePluginEntries(opencodeConfig.plugin, enableOhMyOpencode);
+  opencodeConfig.plugin = ensurePluginEntries(
+    opencodeConfig.plugin,
+    enableOhMyOpencode,
+    enableOpenclawPlugin,
+  );
   writeJson(opencodeConfigPath, opencodeConfig);
 
-  if (!enableOhMyOpencode) {
+  if (!enableOmoDefaultConfig) {
     return;
   }
 

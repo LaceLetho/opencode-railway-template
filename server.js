@@ -31,6 +31,8 @@ const debugTraffic = process.env.DEBUG_OPENCODE_TRAFFIC === "true";
 const WEB_ROOT = process.env.OPENCODE_WEB_DIST_DIR || "/opt/opencode/packages/app/dist";
 const sourceMode = isSourceMode(process.env);
 const enableOhMyOpencode = process.env.ENABLE_OH_MY_OPENCODE !== "false";
+const enableOpenclawPlugin = process.env.ENABLE_OPENCLAW_PLUGIN === "true";
+const enableOmoDefaultConfig = process.env.ENABLE_OMO_DEFAULT_CONFIG === "true";
 const ACTIVITY_FILE = process.env.OPENCODE_ACTIVITY_FILE || "/tmp/opencode_monitor_state_v5/last_activity";
 const SESSION_STATUS_POLL_MS = Number(process.env.OPENCODE_SESSION_STATUS_POLL_MS || "60000");
 const sleepDebug = process.env.LOG_SLEEP_BLOCKERS !== "false";
@@ -65,6 +67,8 @@ process.env.OPENCLAW_PORT = PLUGIN_PORT;
 try {
   ensureRuntimeConfigs({
     enableOhMyOpencode,
+    enableOpenclawPlugin,
+    enableOmoDefaultConfig,
   });
 } catch (err) {
   console.error("[wrapper] Failed to update runtime config:", err.message);
@@ -93,6 +97,8 @@ console.log(`Workspace: ${WORKSPACE}`);
 console.log(`Source mode: ${sourceMode ? "true (build from source)" : "false (published opencode-ai)"}`);
 console.log(`Log level: ${logLevel} (set LOG_LEVEL env var to change: DEBUG, INFO, WARN, ERROR)`);
 console.log(`Oh My OpenCode: ${enableOhMyOpencode ? "enabled" : "disabled"}`);
+console.log(`OpenClaw plugin injection: ${enableOpenclawPlugin ? "enabled" : "disabled"}`);
+console.log(`OMO default config override: ${enableOmoDefaultConfig ? "enabled" : "disabled"}`);
 if (debugTraffic) {
   console.log("OpenCode traffic debug logging enabled");
 }

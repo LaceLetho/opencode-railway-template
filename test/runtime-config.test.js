@@ -15,28 +15,38 @@ const writeJson = (filePath, value) => {
 
 const run = () => {
   assert.deepEqual(
-    ensurePluginEntries([], true),
+    ensurePluginEntries([], true, true),
     ["@laceletho/plugin-openclaw", OMO_PLUGIN],
   );
 
   assert.deepEqual(
-    ensurePluginEntries(["oh-my-openagent@beta"], true),
+    ensurePluginEntries(["oh-my-openagent@beta"], true, true),
     [OMO_PLUGIN, "@laceletho/plugin-openclaw"],
   );
 
   assert.deepEqual(
-    ensurePluginEntries(["@laceletho/plugin-openclaw"], false),
+    ensurePluginEntries(["@laceletho/plugin-openclaw"], false, true),
     ["@laceletho/plugin-openclaw"],
   );
 
   assert.deepEqual(
-    ensurePluginEntries(["oh-my-opencode@1.2.3", "@laceletho/plugin-openclaw"], true),
+    ensurePluginEntries(["oh-my-opencode@1.2.3", "@laceletho/plugin-openclaw"], true, true),
     [OMO_PLUGIN, "@laceletho/plugin-openclaw"],
   );
 
   assert.deepEqual(
-    ensurePluginEntries(["oh-my-opencode@latest", "@laceletho/plugin-openclaw"], false),
+    ensurePluginEntries(["oh-my-opencode@latest", "@laceletho/plugin-openclaw"], false, true),
     ["@laceletho/plugin-openclaw"],
+  );
+
+  assert.deepEqual(
+    ensurePluginEntries(["@laceletho/plugin-openclaw"], true, false),
+    [OMO_PLUGIN],
+  );
+
+  assert.deepEqual(
+    ensurePluginEntries([], false, false),
+    [],
   );
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-runtime-config-"));
@@ -75,6 +85,8 @@ const run = () => {
     omoCanonicalConfigPath,
     omoTemplatePath,
     enableOhMyOpencode: true,
+    enableOpenclawPlugin: true,
+    enableOmoDefaultConfig: true,
   });
 
   assert.deepEqual(JSON.parse(fs.readFileSync(opencodeConfigPath, "utf8")), {
@@ -121,10 +133,19 @@ const run = () => {
     omoCanonicalConfigPath,
     omoTemplatePath,
     enableOhMyOpencode: false,
+    enableOpenclawPlugin: false,
+    enableOmoDefaultConfig: false,
   });
 
   assert.deepEqual(JSON.parse(fs.readFileSync(opencodeConfigPath, "utf8")), {
-    plugin: ["@laceletho/plugin-openclaw"],
+    plugin: [],
+  });
+  assert.deepEqual(JSON.parse(fs.readFileSync(omoConfigPath, "utf8")), {
+    $schema: "https://example.com/schema.json",
+    agents: {
+      explore: { model: "kimi-for-coding/k2p5" },
+      librarian: { model: "kimi-for-coding/k2p5" },
+    },
   });
 
   fs.rmSync(dir, { recursive: true, force: true });
