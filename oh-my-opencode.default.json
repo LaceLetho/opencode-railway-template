@@ -2,29 +2,15 @@
   "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
   "agents": {
     "sisyphus": {
-      "fallbackChain": [
+      "model": "opencode-go/glm-5.1",
+      "fallback_models": [
+        "zai-coding-plan/glm-5.1",
+        "opencode-go/kimi-k2.5",
         {
-          "providers": [
-            "zai-coding-plan",
-            "opencode-go"
-          ],
-          "model": "glm-5.1"
-        },
-        {
-          "providers": [
-            "opencode-go"
-          ],
-          "model": "kimi-k2.5"
-        },
-        {
-          "providers": [
-            "openai",
-            "github-copilot",
-            "opencode"
-          ],
-          "model": "gpt-5.4",
+          "model": "openai/gpt-5.4",
           "variant": "medium"
-        }
+        },
+        "github-copilot/gpt-5.4"
       ]
     }
   }
