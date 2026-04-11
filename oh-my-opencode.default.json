@@ -1,11 +1,31 @@
 {
   "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
   "agents": {
-    "explore": {
-      "model": "kimi-for-coding/k2p5"
-    },
-    "librarian": {
-      "model": "kimi-for-coding/k2p5"
+    "sisyphus": {
+      "fallbackChain": [
+        {
+          "providers": [
+            "zai-coding-plan",
+            "opencode-go"
+          ],
+          "model": "glm-5.1"
+        },
+        {
+          "providers": [
+            "opencode-go"
+          ],
+          "model": "kimi-k2.5"
+        },
+        {
+          "providers": [
+            "openai",
+            "github-copilot",
+            "opencode"
+          ],
+          "model": "gpt-5.4",
+          "variant": "medium"
+        }
+      ]
     }
   }
 }
