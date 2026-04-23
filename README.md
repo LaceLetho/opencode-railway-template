@@ -98,12 +98,34 @@ These solve different problems:
 - Set `ENABLE_OPENCLAW_PLUGIN=true` if you also want to inject `@laceletho/plugin-openclaw`.
 - Set `ENABLE_OMO_DEFAULT_CONFIG=true` if you want startup to rebuild the oh-my config from the bundled template.
 - A new Railway deployment id triggers cache cleanup and re-download of the latest oh-my plugin.
+- Restarts within the same Railway deployment keep the plugin cache on purpose, so startup stays fast and repeatable.
 
 Disable this behavior with:
 
 ```bash
 ENABLE_OH_MY_OPENCODE=false
 ```
+
+## Manual Plugin Upgrade
+
+OpenCode caches npm plugins under `~/.cache/opencode/packages/<spec>`. Running `opencode plugin <pkg> --force -g` updates the configured plugin spec, but it does not invalidate an existing cached `@latest` directory by itself.
+
+If you need to force an already-installed plugin to refresh to the latest published npm version, remove the cached package directory first and then run the plugin install command again:
+
+```bash
+rm -rf ~/.cache/opencode/packages/@laceletho/plugin-openclaw@latest
+opencode plugin @laceletho/plugin-openclaw --force -g
+```
+
+This is the recommended manual upgrade path for npm-based OpenCode plugins when a cached `@latest` entry is stale.
+
+For `oh-my-openagent`, the template already automates the same cache-invalidation idea on Railway redeploy:
+
+- the config is kept at `oh-my-openagent@latest`
+- a new Railway deployment id clears the cached `oh-my-openagent@latest` package
+- the next startup pulls the latest published version again
+
+That mechanism is already the right fit for this template, so it does not need to be replaced with a manual `opencode plugin ... --force -g` step. If you want a same-deployment refresh without redeploying, use the manual cache-delete flow above.
 
 ## Local Run
 
