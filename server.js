@@ -296,6 +296,14 @@ function shouldSuppressLog(trimmed) {
   if (trimmed.includes('Executable not found in $PATH: "xdg-open"')) return true;
   if (
     trimmed.startsWith("INFO") &&
+    trimmed.includes("service=bus") &&
+    (
+      trimmed.includes("type=message.part.delta") ||
+      trimmed.includes("type=message.part.updated")
+    )
+  ) return true;
+  if (
+    trimmed.startsWith("INFO") &&
     trimmed.includes("service=server") &&
     (
       trimmed.includes("path=/global/health") ||
