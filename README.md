@@ -6,6 +6,8 @@ Deploy OpenCode on Railway with the pieces that matter in production: pinned fro
 
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/opencode?referralCode=Se0h8C&utm_medium=integration&utm_source=template&utm_campaign=generic)
 
+<img src="./assets/mobile-opencode.png" alt="OpenCode mobile web UI" width="360">
+
 ## Why This Template
 
 1. **Build from source, keep web and core on the same version**
@@ -22,6 +24,9 @@ Deploy OpenCode on Railway with the pieces that matter in production: pinned fro
 
 5. **Cookie-based browser auth that works better with Chrome and Safari**
    Browsers log in through `/login` and receive a secure session cookie. CLI and automation can still use HTTP Basic Auth. This works better for Web UI, PWA install flow, and WebSocket auth than relying on browser Basic Auth alone.
+
+6. **Perfect mobile device access**
+   The deployed OpenCode Web UI works smoothly from mobile browsers, so you can review sessions, inspect changes, and send prompts from your phone.
 
 ## Quick Start
 

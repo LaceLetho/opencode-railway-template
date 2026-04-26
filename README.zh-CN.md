@@ -6,6 +6,8 @@
 
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/opencode?referralCode=Se0h8C&utm_medium=integration&utm_source=template&utm_campaign=generic)
 
+<img src="./assets/mobile-opencode.png" alt="OpenCode 移动端 Web UI" width="360">
+
 ## 这个模板的特点
 
 1. **从源码构建，保证 Web 与 Core 版本一致**
@@ -22,6 +24,9 @@
 
 5. **基于 cookie 的浏览器认证，对 Chrome / Safari 更友好**
    浏览器通过 `/login` 登录后拿到安全 session cookie；CLI 和自动化脚本仍可继续使用 HTTP Basic Auth。相比直接依赖浏览器 Basic Auth，这种方式对 Web UI、PWA、WebSocket 的兼容性更稳定。
+
+6. **完美支持移动设备访问**
+   部署后的 OpenCode Web UI 可以在手机浏览器里顺畅使用，随时查看会话、检查变更并发送提示词。
 
 ## 快速部署
 
