@@ -772,7 +772,6 @@ function isPublicPath(pathname) {
 
 function isStaticRoute(pathname) {
   if (!sourceMode) return false;
-  if (pathname === "/") return true;
   if (isPublicPath(pathname)) return true;
   if (pathname.startsWith("/assets/")) return true;
   return false;
@@ -964,7 +963,6 @@ const server = http.createServer(async (req, res) => {
   const pathname = pathnameOf(req.url);
   const isApiReq = isOpencodeApiEndpoint(req.url);
   const isPluginReq = isPluginEndpoint(req.url);
-  const isPublicReq = isPublicPath(pathname);
 
   if (shouldLogSleepInbound(req, pathname, isApiReq, isPluginReq)) {
     logSleepInbound(req, pathname);
@@ -1028,7 +1026,7 @@ const server = http.createServer(async (req, res) => {
         console.error(`[wrapper] Failed to auto-create session for ${directory}: ${err.message}`);
       }
     }
-    if (handleStatic(req, res, "/")) {
+    if (sendStatic(res, staticPath("/"), req.method)) {
       return;
     }
     sendMissingStatic(res, "/");
