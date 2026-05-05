@@ -23,6 +23,8 @@ const run = () => {
   assert.equal(handler.includes("isStaticRoute(pathname)"), true, "static handler only serves static routes");
   assert.match(server, /if \(!isAuthenticated\(req\)\) \{[\s\S]+redirect\(res, "\/login"\)/);
   assert.match(server, /sendStatic\(res, staticPath\("\/"\), req\.method\)/);
+  assert.match(server, /const forwardHeaders = \{ \.\.\.req\.headers \}/);
+  assert.doesNotMatch(server, /delete forwardHeaders\.host/);
 
   console.log("auth routing ok");
 };
