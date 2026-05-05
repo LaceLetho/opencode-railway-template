@@ -18,8 +18,10 @@ const close = (server) =>
   new Promise((resolve) => server.close(resolve))
 
 const run = async () => {
+  let upstreamHost
   const upstream = http.createServer()
   upstream.on("upgrade", (req, socket) => {
+    upstreamHost = req.headers.host
     const accept = createAccept(req.headers["sec-websocket-key"])
     socket.write("HTTP/1.1 101 Switching Protocols\r\n")
     socket.write("Upgrade: websocket\r\n")
@@ -41,7 +43,7 @@ const run = async () => {
   const key = crypto.randomBytes(16).toString("base64")
   const handshake = [
     "GET /pty/test/connect HTTP/1.1",
-    "Host: 127.0.0.1",
+    "Host: opencode.tradao.xyz",
     "Upgrade: websocket",
     "Connection: Upgrade",
     `Sec-WebSocket-Key: ${key}`,
@@ -72,6 +74,7 @@ const run = async () => {
   assert.match(response, /Upgrade: websocket/i)
   assert.match(response, /Connection: Upgrade/i)
   assert.match(response, new RegExp(`Sec-WebSocket-Accept: ${escapeRegex(createAccept(key))}`, "i"))
+  assert.equal(upstreamHost, "opencode.tradao.xyz")
 
   await close(proxy)
   await close(upstream)

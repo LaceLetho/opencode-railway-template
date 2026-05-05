@@ -941,7 +941,6 @@ async function handleLogin(req, res) {
 
 function proxyRequest(req, res, targetPort) {
   const forwardHeaders = { ...req.headers };
-  delete forwardHeaders.host;
   delete forwardHeaders.authorization;
   delete forwardHeaders.cookie;
 

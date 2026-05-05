@@ -2,7 +2,6 @@ const http = require("http")
 
 const proxyWebSocketUpgrade = ({ req, socket, head, targetPort, onError }) => {
   const headers = { ...req.headers }
-  delete headers.host
   delete headers.authorization
 
   const proxyReq = http.request({
@@ -12,7 +11,6 @@ const proxyWebSocketUpgrade = ({ req, socket, head, targetPort, onError }) => {
     method: req.method || "GET",
     headers: {
       ...headers,
-      host: `127.0.0.1:${targetPort}`,
     },
   })
 
