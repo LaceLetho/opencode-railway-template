@@ -58,6 +58,8 @@ Deploy OpenCode on Railway with the pieces that matter in production: frontend +
 | `OPENCODE_RAILWAY_SLEEP_MODE` | `true` | Enable OpenCode's sleep-friendly Railway mode: no hosted UI proxy fallback, narrower UI `connect-src`, hidden-page event stream pause, and remote workspace sync pause by default. |
 | `OPENCODE_ENABLE_REMOTE_WORKSPACE_SYNC` | `false` | Re-enable remote workspace SSE sync when Railway sleep mode is on. This can keep the service awake. |
 | `LOG_LEVEL` | `WARN` | Wrapper log level. |
+| `OPENCODE_STARTUP_TIMEOUT_MS` | `120000` | How long the wrapper waits for OpenCode's `/global/health` endpoint before giving up and exiting. |
+| `OPENCODE_STARTUP_PROBE_TIMEOUT_MS` | `2000` | Per-attempt deadline for a single `/global/health` probe. Requests that OpenCode accepts but never answers are abandoned and retried instead of blocking startup. |
 | `LOG_SLEEP_BLOCKERS` | `false` | Log inbound and outbound requests that can keep a Serverless service awake. |
 | `PREPEND_PATH` | - | Extra PATH entries to inject before everything else. Useful for adding custom tool directories, e.g. `/data/.steel/bin:/data/.railway/bin`. |
 | `SKILLS_UPDATE_ON_START` | `true` | Run `npx skills update -g` on each deploy to refresh globally installed skills. Set to `false` to skip. |
