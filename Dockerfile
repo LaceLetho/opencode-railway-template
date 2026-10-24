@@ -35,7 +35,7 @@ COPY package.json ./
 RUN npm install
 
 # Copy start script, server wrapper, runtime config helpers, oh-my templates, and monitor script
-COPY start.sh server.js plugin-refresh.js runtime-config.js oh-my-opencode*.json launch.js ws-proxy.js monitor.sh ./
+COPY start.sh server.js startup-probe.js plugin-refresh.js runtime-config.js oh-my-opencode*.json launch.js ws-proxy.js monitor.sh ./
 RUN chmod +x monitor.sh
 
 # Railway injects PORT at runtime

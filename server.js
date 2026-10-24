@@ -12,6 +12,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { proxyWebSocketUpgrade } = require("./ws-proxy");
 const { resolveOpencodeLaunch } = require("./launch");
+const { waitForOpencode } = require("./startup-probe");
 const { ensureOhMyPluginCache, refreshPluginCache } = require("./plugin-refresh");
 const { ensureRuntimeConfigs } = require("./runtime-config");
 
@@ -394,23 +395,6 @@ opencode.on("exit", (code, signal) => {
   console.log(`[wrapper] opencode exited with code=${code}, signal=${signal}`);
   process.exit(code ?? 0);
 });
-
-// Wait for OpenCode startup
-async function waitForOpencode(timeoutMs = 30000) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const res = await fetch(`http://127.0.0.1:${INTERNAL_PORT}/global/health`);
-      if (res.ok) {
-        return true;
-      }
-    } catch {
-      // Not ready yet
-    }
-    await new Promise(r => setTimeout(r, 100));
-  }
-  return false;
-}
 
 function parseBasicAuth(req) {
   const auth = req.headers.authorization;
@@ -1192,12 +1176,19 @@ function startMonitor() {
 async function start() {
   // Wait for OpenCode startup
   console.log("[wrapper] Waiting for OpenCode to start...");
-  const ready = await waitForOpencode();
-  if (!ready) {
-    console.error("[wrapper] OpenCode failed to start within timeout");
+  const result = await waitForOpencode({
+    port: INTERNAL_PORT,
+    timeoutMs: Number(process.env.OPENCODE_STARTUP_TIMEOUT_MS) || undefined,
+    probeTimeoutMs: Number(process.env.OPENCODE_STARTUP_PROBE_TIMEOUT_MS) || undefined,
+    log: (line) => console.log(line),
+  });
+  if (!result.ready) {
+    console.error(
+      `[wrapper] OpenCode failed to start within timeout (${result.attempts} probes, ${result.elapsedMs}ms, last: ${result.reason})`
+    );
     process.exit(1);
   }
-  console.log("[wrapper] OpenCode is ready");
+  console.log(`[wrapper] OpenCode is ready after ${result.elapsedMs}ms`);
 
   // Start monitor (after OpenCode is ready)
   startMonitor();
