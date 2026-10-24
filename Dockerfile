@@ -15,11 +15,8 @@ RUN apt-get update \
     procps \
   && rm -rf /var/lib/apt/lists/*
 
-# Pin Bun to the version in packages/opencode `packageManager`; a floating install
-# silently drifted to 1.4.4 and broke `bun install` (photon-node patch hunk #10).
-ARG BUN_VERSION=1.3.14
-ARG OPENCODE_SOURCE_CACHE_BUST=20260602T113843Z
-RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}" \
+ARG OPENCODE_SOURCE_CACHE_BUST=20261025T005500Z
+RUN curl -fsSL https://bun.sh/install | bash \
   && bun --version \
   && echo "opencode source cache bust: ${OPENCODE_SOURCE_CACHE_BUST}" \
   && git clone --branch railway --single-branch https://github.com/LaceLetho/opencode.git "${OPENCODE_SOURCE_DIR}" \
